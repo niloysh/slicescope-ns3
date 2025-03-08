@@ -1,5 +1,5 @@
 #include "ns3/core-module.h"
-#include "ns3/slicescope-helper.h"
+#include "ns3/slicescope-module.h"
 
 /**
  * \file

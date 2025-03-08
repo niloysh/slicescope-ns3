@@ -18,13 +18,19 @@ build_lib(
                  model/slicescope-switch-net-device.cc
                  model/slicescope-header.cc
                  model/simple-packet-sink.cc
+                 model/custom-traffic-generator.cc
+                 helper/slice-traffic-helper.cc
+                 helper/slice-distribution-helper.cc
     HEADER_FILES model/slicescope.h
                  helper/slicescope-helper.h
                  helper/slicescope-switch-helper.h
                  model/slicescope-switch-net-device.h
                  model/slicescope-header.h
                  model/simple-packet-sink.h
-    LIBRARIES_TO_LINK ${libcore}
+                 model/custom-traffic-generator.h
+                 helper/slice-traffic-helper.h
+                 helper/slice-distribution-helper.h
+    LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}
 )
