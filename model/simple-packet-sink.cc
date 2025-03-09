@@ -83,9 +83,9 @@ SimplePacketSink::HandleRead(Ptr<Socket> socket)
         m_flowStats[flowKey].totalBytes += packet->GetSize();
         m_flowStats[flowKey].totalPackets++;
 
-        NS_LOG_INFO("Received packet from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
-                                            << " Size: " << packet->GetSize() << " Total Packets: "
-                                            << m_totalPackets << " Total Bytes: " << m_totalBytes);
+        NS_LOG_DEBUG("Received packet from " << InetSocketAddress::ConvertFrom(from).GetIpv4()
+                                             << " Size: " << packet->GetSize() << " Total Packets: "
+                                             << m_totalPackets << " Total Bytes: " << m_totalBytes);
     }
 }
 

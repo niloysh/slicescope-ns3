@@ -20,7 +20,6 @@ build_lib(
                  model/simple-packet-sink.cc
                  model/custom-traffic-generator.cc
                  helper/slice-traffic-helper.cc
-                 helper/slice-distribution-helper.cc
     HEADER_FILES model/slicescope.h
                  helper/slicescope-helper.h
                  helper/slicescope-switch-helper.h
@@ -29,7 +28,6 @@ build_lib(
                  model/simple-packet-sink.h
                  model/custom-traffic-generator.h
                  helper/slice-traffic-helper.h
-                 helper/slice-distribution-helper.h
     LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}
