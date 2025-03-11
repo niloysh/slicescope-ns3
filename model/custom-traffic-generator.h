@@ -33,6 +33,8 @@ class CustomTrafficGenerator : public Application
                uint32_t maxSize,
                uint32_t maxPackets);
 
+    void SetSliceType(std::string sliceType);
+
   protected:
     void StartApplication() override;
     void StopApplication() override;
@@ -50,6 +52,9 @@ class CustomTrafficGenerator : public Application
     uint32_t m_maxSize;
     uint32_t m_maxPackets;
     uint32_t m_packetsSent;
+
+    std::string m_sliceType;
+    uint8_t GetDscp(std::string sliceType);
 };
 
 } // namespace ns3

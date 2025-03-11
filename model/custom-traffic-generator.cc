@@ -1,9 +1,12 @@
 #include "custom-traffic-generator.h"
 
 #include "ns3/double.h"
+#include "ns3/ipv4-header.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
+
+#include <sys/types.h>
 
 namespace ns3
 {
@@ -94,6 +97,41 @@ CustomTrafficGenerator::StopApplication()
 }
 
 void
+CustomTrafficGenerator::SetSliceType(std::string sliceType)
+{
+    m_sliceType = sliceType;
+}
+
+uint8_t
+CustomTrafficGenerator::GetDscp(std::string sliceType)
+{
+    if (sliceType == "eMBB")
+    {
+        // DSCP AF41 (Assured Forwarding)
+        // DS field in Wireshark -> 0xA0
+        return 40;
+    }
+    else if (sliceType == "URLLC")
+    {
+        // DSCP EF (Expedited Forwarding)
+        // DS field in Wireshark -> 0xB8
+        return 46;
+    }
+    else if (sliceType == "mMTC")
+    {
+        // DSCP CS1 (Class Selector)
+        // DS field in Wireshark -> 0x20
+        return 8;
+    }
+    else
+    {
+        // DSCP BE (Best Effort)
+        // DS field in Wireshark -> 0x00
+        return 0;
+    }
+}
+
+void
 CustomTrafficGenerator::SendPacket()
 {
     if (m_maxPackets > 0 && m_packetsSent >= m_maxPackets)
@@ -105,6 +143,11 @@ CustomTrafficGenerator::SendPacket()
 
     uint32_t packetSize = m_packetSize->GetInteger();
     Ptr<Packet> packet = Create<Packet>(packetSize);
+
+    uint8_t dscp = GetDscp(m_sliceType);
+    int tosValue = (dscp << 2);   // DSCP field is bits 3-6 of TOS field
+    m_socket->SetIpTos(tosValue); // Set the TOS field on the socket
+
     m_socket->Send(packet);
     m_packetsSent++;
 

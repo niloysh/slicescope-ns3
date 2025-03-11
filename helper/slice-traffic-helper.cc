@@ -114,13 +114,14 @@ SliceTrafficHelper::Install()
         for (uint32_t j = 0; j < m_appsPerSlice; ++j)
         {
             Ptr<CustomTrafficGenerator> generator = CreateTrafficGenerator(sliceType, m_maxPackets);
+            generator->SetSliceType(sliceTypeNames[sliceType]);
 
             sourceNode->AddApplication(generator);
             apps.Add(generator);
         }
 
         NS_LOG_INFO("Node: " << sourceNode->GetId() << " Apps: " << m_appsPerSlice
-                             << " Slice: " << sliceType);
+                             << " Slice: " << sliceTypeNames[sliceType]);
     }
 
     return apps;

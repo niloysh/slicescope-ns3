@@ -25,6 +25,10 @@ class SliceTrafficHelper
         mMTC
     };
 
+    std::unordered_map<SliceType, std::string> sliceTypeNames = {{eMBB, "eMBB"},
+                                                                 {URLLC, "URLLC"},
+                                                                 {mMTC, "mMTC"}};
+
     struct SliceParams
     {
         double minRateMbps = 1.0;
@@ -44,6 +48,7 @@ class SliceTrafficHelper
     void SetMaxPackets(uint32_t maxPackets);
     void SetAppsPerSlice(uint32_t appsPerSlice);
     void SetNumSlices(uint32_t numSlices);
+    Ptr<CustomTrafficGenerator> CreateTrafficGenerator(SliceType sliceType, uint32_t maxPackets);
 
     ApplicationContainer Install();
 
@@ -63,8 +68,6 @@ class SliceTrafficHelper
     Ptr<UniformRandomVariable> m_randomDataRate;
     Ptr<UniformRandomVariable> m_randomPacketSize;
     Ptr<UniformRandomVariable> m_randomAppsPerSlice;
-
-    Ptr<CustomTrafficGenerator> CreateTrafficGenerator(SliceType sliceType, uint32_t maxPackets);
 };
 
 } // namespace ns3
