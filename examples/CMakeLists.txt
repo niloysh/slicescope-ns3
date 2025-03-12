@@ -5,6 +5,6 @@ foreach(EXAMPLE_FILE ${EXAMPLE_SOURCES})
     build_lib_example(
         NAME ${EXAMPLE_NAME}
         SOURCE_FILES ${EXAMPLE_FILE}
-        LIBRARIES_TO_LINK ${libslicescope} ${libcore} ${libnetwork} ${libinternet} ${libpoint-to-point} ${libapplications}
+        LIBRARIES_TO_LINK ${libslicescope} ${libcore} ${libnetwork} ${libinternet} ${libpoint-to-point} ${libapplications} ${libcsma} ${libbridge}
     )
 endforeach()

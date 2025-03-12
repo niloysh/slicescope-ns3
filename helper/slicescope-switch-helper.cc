@@ -1,22 +1,3 @@
-/*
- * Copyright (c) 2024 Your Name
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Author: Your Name <your.email@example.com>
- */
-
 #include "slicescope-switch-helper.h"
 
 #include "ns3/bridge-net-device.h"
@@ -54,7 +35,7 @@ SlicescopeSwitchHelper::Install(Ptr<Node> node, NetDeviceContainer c)
     devs.Add(dev);
     node->AddDevice(dev);
 
-    for (NetDeviceContainer::Iterator i = c.Begin(); i != c.End(); ++i)
+    for (auto i = c.Begin(); i != c.End(); ++i)
     {
         NS_LOG_INFO("**** Add SwitchPort " << *i);
         // dev->AddSwitchPort(*i);
