@@ -58,7 +58,6 @@ class SliceTrafficHelper
     std::unordered_map<SliceType, SliceParams> m_sliceParams;
     std::unordered_map<SliceType, double> m_sliceProbabilities;
     NodeContainer m_sources;
-    double m_dataRateMbps;
     uint32_t m_maxPackets;
     uint32_t m_numSlices;
     bool m_setAppsPerSlice = false;
