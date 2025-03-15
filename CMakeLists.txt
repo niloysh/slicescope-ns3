@@ -21,6 +21,7 @@ build_lib(
                  model/custom-traffic-generator.cc
                  helper/slice-traffic-helper.cc
                  model/simple-queue-disc.cc
+                 helper/topology-helper.cc
     HEADER_FILES model/slicescope.h
                  helper/slicescope-helper.h
                  helper/slicescope-switch-helper.h
@@ -31,7 +32,8 @@ build_lib(
                  helper/slice-traffic-helper.h
                  model/time-tag.h
                  model/simple-queue-disc.h
-    LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet}
+                 helper/topology-helper.h
+    LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}
 )
