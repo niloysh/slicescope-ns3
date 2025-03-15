@@ -6,6 +6,7 @@
 #include "ns3/network-module.h"
 #include "ns3/string.h"
 
+#include <cstdint>
 #include <sys/types.h>
 
 namespace ns3
@@ -39,8 +40,8 @@ TopologyHelper::SetSwitchChannelHelper(PointToPointHelper p2pSwitches)
 }
 
 void
-TopologyHelper::CreateTopology(std::vector<std::pair<int, int>> hostSwitchLinks,
-                               std::vector<std::pair<int, int>> interSwitchLinks)
+TopologyHelper::CreateTopology(std::vector<std::pair<uint32_t, uint32_t>> hostSwitchLinks,
+                               std::vector<std::pair<uint32_t, uint32_t>> interSwitchLinks)
 {
     CreateLinks(hostSwitchLinks,
                 hosts,
@@ -63,7 +64,7 @@ TopologyHelper::CreateTopology(std::vector<std::pair<int, int>> hostSwitchLinks,
 }
 
 void
-TopologyHelper::CreateLinks(const std::vector<std::pair<int, int>>& links,
+TopologyHelper::CreateLinks(const std::vector<std::pair<uint32_t, uint32_t>>& links,
                             NodeContainer& nodeGroupA,
                             NodeContainer& nodeGroupB,
                             std::vector<NodeContainer>& nodePairs,
@@ -72,8 +73,8 @@ TopologyHelper::CreateLinks(const std::vector<std::pair<int, int>>& links,
 {
     for (const auto& link : links)
     {
-        int nodeIdA = link.first;
-        int nodeIdB = link.second;
+        uint32_t nodeIdA = link.first;
+        uint32_t nodeIdB = link.second;
 
         if (nodeIdA >= nodeGroupA.GetN() || nodeIdB >= nodeGroupB.GetN())
         {

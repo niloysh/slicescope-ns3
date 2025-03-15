@@ -8,6 +8,8 @@
 #include "ns3/slicescope-module.h"
 #include "ns3/traffic-control-module.h"
 
+#include <cstdint>
+
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("Example_12");
@@ -40,8 +42,8 @@ main(int argc, char* argv[])
     //             |
     //            h1
 
-    std::vector<std::pair<int, int>> hostSwitchLinks = {{0, 0}, {1, 1}, {2, 2}};
-    std::vector<std::pair<int, int>> interSwitchLinks = {{0, 1}, {1, 2}};
+    std::vector<std::pair<uint32_t, uint32_t>> hostSwitchLinks = {{0, 0}, {1, 1}, {2, 2}};
+    std::vector<std::pair<uint32_t, uint32_t>> interSwitchLinks = {{0, 1}, {1, 2}};
 
     topo.CreateTopology(hostSwitchLinks, interSwitchLinks);
 
