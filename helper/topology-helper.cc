@@ -8,23 +8,20 @@
 
 #include <cstdint>
 #include <sys/types.h>
+#include <unordered_set>
 
 namespace ns3
 {
 
 NS_LOG_COMPONENT_DEFINE("TopologyHelper");
 
-TopologyHelper::TopologyHelper(uint32_t numSwitches, uint32_t numHosts)
+TopologyHelper::TopologyHelper()
     : subnetCounter(1)
 {
-    NS_LOG_INFO("Creating topology with " << numSwitches << " switches and " << numHosts
-                                          << " hosts");
-    switches.Create(numSwitches);
-    hosts.Create(numHosts);
+}
 
-    // Install internet stack on all nodes
-    internet.Install(hosts);
-    internet.Install(switches);
+TopologyHelper::~TopologyHelper()
+{
 }
 
 void
@@ -43,6 +40,28 @@ void
 TopologyHelper::CreateTopology(std::vector<std::pair<uint32_t, uint32_t>> hostSwitchLinks,
                                std::vector<std::pair<uint32_t, uint32_t>> interSwitchLinks)
 {
+    std::unordered_set<uint32_t> hostIndices;
+    std::unordered_set<uint32_t> switchIndices;
+
+    for (const auto& link : hostSwitchLinks)
+    {
+        hostIndices.insert(link.first);
+        switchIndices.insert(link.second);
+    }
+
+    for (const auto& link : interSwitchLinks)
+    {
+        switchIndices.insert(link.first);
+        switchIndices.insert(link.second);
+    }
+
+    hosts.Create(hostIndices.size());
+    switches.Create(switchIndices.size());
+
+    // Install internet stack on all nodes
+    internet.Install(hosts);
+    internet.Install(switches);
+
     CreateLinks(hostSwitchLinks,
                 hosts,
                 switches,

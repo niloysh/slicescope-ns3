@@ -16,7 +16,8 @@ namespace ns3
 class TopologyHelper
 {
   public:
-    TopologyHelper(uint32_t numSwitches, uint32_t numHosts);
+    TopologyHelper();
+    ~TopologyHelper();
 
     /**
      * \brief Method to manually create the topology based on host-switch and inter-switch links
@@ -72,6 +73,6 @@ class TopologyHelper
     void AssignIPAddresses(std::vector<NetDeviceContainer>& devicePairs);
 };
 
-#endif // TOPOLOGY_HELPER_H
-
 } // namespace ns3
+
+#endif // TOPOLOGY_HELPER_H
