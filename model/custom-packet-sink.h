@@ -1,5 +1,5 @@
-#ifndef SIMPLE_PACKET_SINK_H
-#define SIMPLE_PACKET_SINK_H
+#ifndef CUSTOM_PACKET_SINK_H
+#define CUSTOM_PACKET_SINK_H
 
 #include "ns3/address.h"
 #include "ns3/application.h"
@@ -16,18 +16,20 @@ struct FlowStats
 {
     uint64_t totalBytes;
     uint32_t totalPackets;
+    std::vector<double> timestamps;
 };
 
-class SimplePacketSink : public Application
+class CustomPacketSink : public Application
 {
   public:
     static TypeId GetTypeId();
 
-    SimplePacketSink();
-    ~SimplePacketSink() override;
-
-    void Setup(uint16_t port);
+    CustomPacketSink();
+    ~CustomPacketSink() override;
     void PrintStats() const;
+    uint32_t GetTotalPackets() const;
+    uint32_t GetTotalBytes() const;
+    std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> GetFlowStats() const;
 
   private:
     void StartApplication() override;
@@ -41,6 +43,7 @@ class SimplePacketSink : public Application
 
     Ptr<Socket> m_socket;
     Address m_localAddress;
+    uint16_t m_port;
     uint64_t m_totalBytes;
     uint32_t m_totalPackets;
     std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> m_flowStats;
@@ -48,4 +51,4 @@ class SimplePacketSink : public Application
 
 } // namespace ns3
 
-#endif /* SIMPLE_PACKET_SINK_H */
+#endif /* CUSTOM_PACKET_SINK */

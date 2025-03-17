@@ -1,11 +1,15 @@
 #include "custom-traffic-generator.h"
 
 #include "ns3/double.h"
+#include "ns3/inet-socket-address.h"
 #include "ns3/ipv4-header.h"
+#include "ns3/ipv4.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
+#include "ns3/uinteger.h"
 
+#include <cstdint>
 #include <sys/types.h>
 
 namespace ns3
@@ -18,19 +22,49 @@ NS_OBJECT_ENSURE_REGISTERED(CustomTrafficGenerator);
 TypeId
 CustomTrafficGenerator::GetTypeId()
 {
-    static TypeId tid = TypeId("ns3::CustomTrafficGenerator")
-                            .SetParent<Application>()
-                            .SetGroupName("Applications")
-                            .AddConstructor<CustomTrafficGenerator>();
+    static TypeId tid =
+        TypeId("ns3::CustomTrafficGenerator")
+            .SetParent<Application>()
+            .SetGroupName("Applications")
+            .AddConstructor<CustomTrafficGenerator>()
+            .AddAttribute("DestIp",
+                          "The destination IP address",
+                          Ipv4AddressValue(),
+                          MakeIpv4AddressAccessor(&CustomTrafficGenerator::m_destIp),
+                          MakeIpv4AddressChecker())
+            .AddAttribute("DestPort",
+                          "The destination port",
+                          UintegerValue(1234),
+                          MakeUintegerAccessor(&CustomTrafficGenerator::m_destPort),
+                          MakeUintegerChecker<uint16_t>())
+            .AddAttribute("MaxPackets",
+                          "The maximum number of packets to send (0 = unlimited)",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&CustomTrafficGenerator::m_maxPackets),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("DataRate",
+                          "The data rate in Mbps",
+                          DoubleValue(1.0),
+                          MakeDoubleAccessor(&CustomTrafficGenerator::m_dataRate),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("PacketSize",
+                          "The size of the packets to send in bytes",
+                          UintegerValue(1000),
+                          MakeUintegerAccessor(&CustomTrafficGenerator::m_packetSize),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("Dscp",
+                          "The DSCP value to set in the IP header",
+                          UintegerValue(0),
+                          MakeUintegerAccessor(&CustomTrafficGenerator::m_dscp),
+                          MakeUintegerChecker<uint8_t>());
     return tid;
 }
 
 CustomTrafficGenerator::CustomTrafficGenerator()
     : m_socket(nullptr),
-      m_sendEvent(),
-      m_maxPackets(0),
-      m_packetsSent(0)
+      m_packetsSent(0) // Ensure correct initialization
 {
+    NS_LOG_INFO("CustomTrafficGenerator created");
 }
 
 CustomTrafficGenerator::~CustomTrafficGenerator()
@@ -42,52 +76,56 @@ CustomTrafficGenerator::~CustomTrafficGenerator()
 }
 
 void
-CustomTrafficGenerator::Setup(Ipv4Address dest,
-                              uint16_t port,
-                              double dataRateMbps,
-                              uint32_t minSize,
-                              uint32_t maxSize,
-                              uint32_t maxPackets)
-
+CustomTrafficGenerator::StartApplication()
 {
-    m_destIp = dest;
-    m_destPort = port;
-    m_minSize = minSize;
-    m_maxSize = maxSize;
-    m_maxPackets = maxPackets;
+    NS_LOG_INFO("Starting " << this->GetInstanceTypeId().GetName() << " on node "
+                            << GetNode()->GetId() << "...");
+
+    m_running = true;
     m_packetsSent = 0;
 
-    // Calculate average packet size in bits
-    double averagePacketSizeBits = (minSize + maxSize) / 2.0 * 8.0;
-
-    // Calculate lambda for Poisson process
-    double lambda = dataRateMbps * 1e6 / averagePacketSizeBits;
+    double packetSizeBits = static_cast<double>(m_packetSize) * 8;
+    double lambda = m_dataRate * 1e6 / packetSizeBits; // Packets per second
 
     // Poisson process (exponential inter-arrival times)
     m_interPacketTime = CreateObject<ExponentialRandomVariable>();
     m_interPacketTime->SetAttribute("Mean", DoubleValue(1.0 / lambda));
 
-    // Packet size variation
-    m_packetSize = CreateObject<UniformRandomVariable>();
-    m_packetSize->SetAttribute("Min", DoubleValue(minSize));
-    m_packetSize->SetAttribute("Max", DoubleValue(maxSize));
-}
-
-void
-CustomTrafficGenerator::StartApplication()
-{
     if (!m_socket)
     {
         m_socket = Socket::CreateSocket(GetNode(), UdpSocketFactory::GetTypeId());
-        m_socket->Connect(InetSocketAddress(m_destIp, m_destPort));
+        if (m_socket->Bind() == -1)
+        {
+            NS_LOG_ERROR("Failed to bind socket.");
+            return;
+        }
+        if (m_socket->Connect(InetSocketAddress(m_destIp, m_destPort)) == -1)
+        {
+            NS_LOG_ERROR("Failed to connect socket to " << m_destIp << ":" << m_destPort);
+            return;
+        }
+
+        NS_LOG_INFO(this->GetInstanceTypeId().GetName()
+                    << " on node " << GetNode()->GetId() << " sending to " << m_destIp << ":"
+                    << m_destPort);
     }
 
-    SendPacket();
+    // Schedule first packet
+    Simulator::ScheduleNow(&CustomTrafficGenerator::SendPacket, this);
 }
 
 void
 CustomTrafficGenerator::StopApplication()
 {
+    if (!m_running)
+    {
+        return;
+    }
+
+    NS_LOG_INFO("Stopping " << this->GetInstanceTypeId().GetName() << " on node "
+                            << GetNode()->GetId() << "...");
+    m_running = false;
+
     if (m_socket)
     {
         m_socket->Close();
@@ -97,64 +135,56 @@ CustomTrafficGenerator::StopApplication()
 }
 
 void
-CustomTrafficGenerator::SetSliceType(std::string sliceType)
-{
-    m_sliceType = sliceType;
-}
-
-uint8_t
-CustomTrafficGenerator::GetDscp(std::string sliceType)
-{
-    if (sliceType == "eMBB")
-    {
-        // DSCP AF41 (Assured Forwarding)
-        // DS field in Wireshark -> 0xA0
-        return 40;
-    }
-    else if (sliceType == "URLLC")
-    {
-        // DSCP EF (Expedited Forwarding)
-        // DS field in Wireshark -> 0xB8
-        return 46;
-    }
-    else if (sliceType == "mMTC")
-    {
-        // DSCP CS1 (Class Selector)
-        // DS field in Wireshark -> 0x20
-        return 8;
-    }
-    else
-    {
-        // DSCP BE (Best Effort)
-        // DS field in Wireshark -> 0x00
-        return 0;
-    }
-}
-
-void
 CustomTrafficGenerator::SendPacket()
 {
     if (m_maxPackets > 0 && m_packetsSent >= m_maxPackets)
     {
-        NS_LOG_INFO("Reached maxPackets limit (" << m_maxPackets << ")");
+        NS_LOG_INFO("Reached maxPackets limit (" << m_maxPackets << "), stopping...");
         StopApplication();
         return;
     }
 
-    uint32_t packetSize = m_packetSize->GetInteger();
-    Ptr<Packet> packet = Create<Packet>(packetSize);
+    if (!m_socket)
+    {
+        NS_LOG_WARN("Socket is null, unable to send packet.");
+        return;
+    }
 
-    uint8_t dscp = GetDscp(m_sliceType);
-    int tosValue = (dscp << 2);   // DSCP field is bits 3-6 of TOS field
-    m_socket->SetIpTos(tosValue); // Set the TOS field on the socket
+    Ptr<Packet> packet = Create<Packet>(m_packetSize);
 
-    m_socket->Send(packet);
-    m_packetsSent++;
+    // Set ToS (Traffic Class field)
+    int tos = m_dscp << 2;
+    m_socket->SetIpTos(tos);
 
-    double nextTime = m_interPacketTime->GetValue();
-    NS_LOG_INFO("Sent packet of size " << packetSize << " bytes, next in " << nextTime << "s");
+    // Send packet
+    int bytesSent = m_socket->Send(packet);
+    if (bytesSent > 0)
+    {
+        m_packetsSent++;
+        double nextTime = m_interPacketTime->GetValue();
+        NS_LOG_INFO("Sent packet #" << m_packetsSent << " of size " << m_packetSize
+                                    << " bytes, next in " << nextTime << "s");
 
-    m_sendEvent = Simulator::Schedule(Seconds(nextTime), &CustomTrafficGenerator::SendPacket, this);
+        // Schedule next packet
+        m_sendEvent =
+            Simulator::Schedule(Seconds(nextTime), &CustomTrafficGenerator::SendPacket, this);
+    }
+    else
+    {
+        NS_LOG_WARN("Packet sending failed.");
+    }
+}
+
+uint32_t
+CustomTrafficGenerator::GetTotalPacketsSent() const
+{
+    return m_packetsSent;
+}
+
+uint32_t
+CustomTrafficGenerator::GetTotalBytesSent() const
+{
+    return m_packetsSent * m_packetSize;
 }
 
 } // namespace ns3

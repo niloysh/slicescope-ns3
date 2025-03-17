@@ -7,6 +7,9 @@
 #include "ns3/random-variable-stream.h"
 #include "ns3/socket.h"
 
+#include <cstdint>
+#include <sys/types.h>
+
 namespace ns3
 {
 
@@ -15,25 +18,10 @@ class CustomTrafficGenerator : public Application
   public:
     static TypeId GetTypeId();
     CustomTrafficGenerator();
-    virtual ~CustomTrafficGenerator();
+    ~CustomTrafficGenerator() override;
 
-    /**
-     * \brief Setup the application.
-     *
-     * \param dest Destination address.
-     * \param port Destination port.
-     * \param dataRateMbps Data rate in Mbps.
-     * \param minSize Minimum packet size.
-     * \param maxSize Maximum packet size.
-     */
-    void Setup(Ipv4Address dest,
-               uint16_t port,
-               double dataRateMbps,
-               uint32_t minSize,
-               uint32_t maxSize,
-               uint32_t maxPackets);
-
-    void SetSliceType(std::string sliceType);
+    uint32_t GetTotalPacketsSent() const;
+    uint32_t GetTotalBytesSent() const;
 
   protected:
     void StartApplication() override;
@@ -44,17 +32,14 @@ class CustomTrafficGenerator : public Application
     Ptr<Socket> m_socket;
     Ipv4Address m_destIp;
     uint16_t m_destPort;
-    EventId m_sendEvent;
-    Ptr<ExponentialRandomVariable> m_interPacketTime;
-    Ptr<UniformRandomVariable> m_packetSize;
-
-    uint32_t m_minSize;
-    uint32_t m_maxSize;
     uint32_t m_maxPackets;
+    EventId m_sendEvent;
     uint32_t m_packetsSent;
-
-    std::string m_sliceType;
-    uint8_t GetDscp(std::string sliceType);
+    double m_dataRate;
+    uint32_t m_packetSize;
+    uint8_t m_dscp;
+    Ptr<ExponentialRandomVariable> m_interPacketTime;
+    bool m_running;
 };
 
 } // namespace ns3
