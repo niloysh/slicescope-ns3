@@ -1,5 +1,8 @@
 #include "custom-packet-sink.h"
 
+#include "time-tag.h"
+
+#include "ns3/boolean.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
@@ -26,7 +29,12 @@ CustomPacketSink::GetTypeId()
                                           "Listening port",
                                           UintegerValue(9),
                                           MakeUintegerAccessor(&CustomPacketSink::m_port),
-                                          MakeUintegerChecker<uint16_t>());
+                                          MakeUintegerChecker<uint16_t>())
+                            .AddAttribute("ComputeDataRate",
+                                          "Whether to compute the data rate",
+                                          BooleanValue(false),
+                                          MakeBooleanAccessor(&CustomPacketSink::m_computeDataRate),
+                                          MakeBooleanChecker());
     return tid;
 }
 
@@ -55,22 +63,31 @@ CustomPacketSink::StartApplication()
         InetSocketAddress localAddress(Ipv4Address::GetAny(), m_port);
         m_socket->Bind(localAddress);
         std::string className = this->GetInstanceTypeId().GetName();
-        NS_LOG_INFO(className << " on node " << GetNode()->GetId() << " listening on port "
-                              << m_port);
+        NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Sink started → Listening on port "
+                             << m_port);
+
         m_socket->SetRecvCallback(MakeCallback(&CustomPacketSink::HandleRead, this));
+
+        if (m_computeDataRate)
+        {
+            m_dataRateEvent =
+                Simulator::Schedule(Seconds(1.0), &CustomPacketSink::ComputeDataRate, this);
+        }
     }
 }
 
 void
 CustomPacketSink::StopApplication()
 {
-    NS_LOG_INFO("Stopping " << this->GetInstanceTypeId().GetName() << " on node "
-                            << GetNode()->GetId() << "...");
+    NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Sink stopped");
+
     if (m_socket)
     {
         m_socket->Close();
         m_socket = nullptr;
     }
+
+    Simulator::Cancel(m_dataRateEvent);
 }
 
 void
@@ -87,9 +104,24 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
             continue;
         }
 
+        double receiveTime = Simulator::Now().GetSeconds();
+
+        if (m_totalPackets == 0)
+        {
+            m_firstPacketTime = receiveTime;
+        }
+        m_lastPacketTime = receiveTime;
+
         m_totalPackets++;
         m_totalBytes += packet->GetSize();
-        double receiveTime = Simulator::Now().GetSeconds(); // Store timestamp
+
+        TimeTag tag;
+        if (packet->PeekPacketTag(tag))
+        {
+            double sentTime = tag.GetTime().GetSeconds();
+            double rtt = receiveTime - sentTime;
+            m_rtt.push_back(rtt);
+        }
 
         InetSocketAddress senderAddress = InetSocketAddress::ConvertFrom(from);
         Ipv4Address srcIp = senderAddress.GetIpv4();
@@ -98,7 +130,6 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
         std::pair<Ipv4Address, uint16_t> flowKey(srcIp, srcPort);
         m_flowStats[flowKey].totalBytes += packet->GetSize();
         m_flowStats[flowKey].totalPackets++;
-        m_flowStats[flowKey].timestamps.push_back(receiveTime);
 
         Address localAddress;
         m_socket->GetSockName(localAddress); // Get the actual bound address
@@ -108,38 +139,22 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
         Ipv4Address destIp = receiverAddress.GetIpv4();
         uint16_t destPort = receiverAddress.GetPort();
 
-        NS_LOG_INFO("Received packet from " << srcIp << ":" << srcPort << " to " << destIp << ":"
-                                            << destPort << " size: " << packet->GetSize()
-                                            << " at time " << receiveTime);
-    }
-}
-
-void
-CustomPacketSink::PrintStats() const
-{
-    uint32_t numFlows = m_flowStats.size();
-    NS_LOG_INFO("=== Sink Statistics: NumFlows: " << numFlows << " TotalPackets: " << m_totalPackets
-                                                  << " TotalBytes: " << m_totalBytes);
-
-    for (const auto& entry : m_flowStats)
-    {
-        Ipv4Address srcIp = entry.first.first;
-        uint16_t srcPort = entry.first.second;
-        const FlowStats& stats = entry.second;
-
-        NS_LOG_INFO("Flow: " << srcIp << ":" << srcPort << " Packets: " << stats.totalPackets
-                             << " Bytes: " << stats.totalBytes);
+        NS_LOG_DEBUG("[Rx] Node " << GetNode()->GetId() << " → Pkt #" << m_totalPackets << " | "
+                                  << srcIp << ":" << srcPort << " → " << destIp << ":" << destPort
+                                  << " | " << packet->GetSize() << "B"
+                                  << " | Time: " << receiveTime << "s"
+                                  << " | RTT: " << (m_rtt.back() * 1000) << "ms");
     }
 }
 
 uint32_t
-CustomPacketSink::GetTotalPackets() const
+CustomPacketSink::GetTotalPacketsReceived() const
 {
     return m_totalPackets;
 }
 
 uint32_t
-CustomPacketSink::GetTotalBytes() const
+CustomPacketSink::GetTotalBytesReceived() const
 {
     return m_totalBytes;
 }
@@ -148,6 +163,26 @@ std::map<std::pair<Ipv4Address, uint16_t>, FlowStats>
 CustomPacketSink::GetFlowStats() const
 {
     return m_flowStats;
+}
+
+void
+CustomPacketSink::ComputeDataRate()
+{
+    if (m_totalPackets > 0)
+    {
+        double elapsedTime = m_lastPacketTime - m_firstPacketTime;
+        if (elapsedTime > 0)
+        {
+            double dataRateMbps = (m_totalBytes * 8) / (elapsedTime * 1e6); // Convert to Mbps
+
+            NS_LOG_INFO("[DataRate] Node " << GetNode()->GetId() << " | " << dataRateMbps << " Mbps"
+                                           << " | Elapsed Time: " << elapsedTime << "s"
+                                           << " | Bytes Received: " << m_totalBytes);
+        }
+    }
+
+    // Schedule next data rate computation
+    m_dataRateEvent = Simulator::Schedule(Seconds(1.0), &CustomPacketSink::ComputeDataRate, this);
 }
 
 } // namespace ns3

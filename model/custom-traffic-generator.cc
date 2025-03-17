@@ -1,10 +1,13 @@
 #include "custom-traffic-generator.h"
 
+#include "time-tag.h"
+
 #include "ns3/double.h"
 #include "ns3/inet-socket-address.h"
 #include "ns3/ipv4-header.h"
 #include "ns3/ipv4.h"
 #include "ns3/log.h"
+#include "ns3/pointer.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
 #include "ns3/uinteger.h"
@@ -47,11 +50,12 @@ CustomTrafficGenerator::GetTypeId()
                           DoubleValue(1.0),
                           MakeDoubleAccessor(&CustomTrafficGenerator::m_dataRate),
                           MakeDoubleChecker<double>())
-            .AddAttribute("PacketSize",
-                          "The size of the packets to send in bytes",
-                          UintegerValue(1000),
-                          MakeUintegerAccessor(&CustomTrafficGenerator::m_packetSize),
-                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute(
+                "PacketSizeVar",
+                "Random variable defining packet size distribution",
+                PointerValue(CreateObject<ConstantRandomVariable>()), // Default to constant size
+                MakePointerAccessor(&CustomTrafficGenerator::m_packetSizeVar),
+                MakePointerChecker<RandomVariableStream>())
             .AddAttribute("Dscp",
                           "The DSCP value to set in the IP header",
                           UintegerValue(0),
@@ -78,18 +82,17 @@ CustomTrafficGenerator::~CustomTrafficGenerator()
 void
 CustomTrafficGenerator::StartApplication()
 {
-    NS_LOG_INFO("Starting " << this->GetInstanceTypeId().GetName() << " on node "
-                            << GetNode()->GetId() << "...");
+    NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Generator started → Dest: " << m_destIp << ":"
+                         << m_destPort);
 
     m_running = true;
     m_packetsSent = 0;
 
-    double packetSizeBits = static_cast<double>(m_packetSize) * 8;
-    double lambda = m_dataRate * 1e6 / packetSizeBits; // Packets per second
+    m_jitterVar = CreateObject<NormalRandomVariable>();  // Jitter around the mean
+    m_jitterVar->SetAttribute("Mean", DoubleValue(0.0)); // Centered around 0
+    m_jitterVar->SetAttribute("Variance", DoubleValue(0.0));
 
-    // Poisson process (exponential inter-arrival times)
-    m_interPacketTime = CreateObject<ExponentialRandomVariable>();
-    m_interPacketTime->SetAttribute("Mean", DoubleValue(1.0 / lambda));
+    PrecomputeInterarrivalTimes();
 
     if (!m_socket)
     {
@@ -104,10 +107,6 @@ CustomTrafficGenerator::StartApplication()
             NS_LOG_ERROR("Failed to connect socket to " << m_destIp << ":" << m_destPort);
             return;
         }
-
-        NS_LOG_INFO(this->GetInstanceTypeId().GetName()
-                    << " on node " << GetNode()->GetId() << " sending to " << m_destIp << ":"
-                    << m_destPort);
     }
 
     // Schedule first packet
@@ -122,8 +121,8 @@ CustomTrafficGenerator::StopApplication()
         return;
     }
 
-    NS_LOG_INFO("Stopping " << this->GetInstanceTypeId().GetName() << " on node "
-                            << GetNode()->GetId() << "...");
+    NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Generator stopped → Sent: " << m_packetsSent
+                         << " pkts");
     m_running = false;
 
     if (m_socket)
@@ -139,7 +138,6 @@ CustomTrafficGenerator::SendPacket()
 {
     if (m_maxPackets > 0 && m_packetsSent >= m_maxPackets)
     {
-        NS_LOG_INFO("Reached maxPackets limit (" << m_maxPackets << "), stopping...");
         StopApplication();
         return;
     }
@@ -150,7 +148,16 @@ CustomTrafficGenerator::SendPacket()
         return;
     }
 
-    Ptr<Packet> packet = Create<Packet>(m_packetSize);
+    auto packetSize = static_cast<uint32_t>(m_packetSizeVar->GetValue());
+    packetSize = std::max(packetSize, 64U);   // Ensure minimum size of 64 bytes
+    packetSize = std::min(packetSize, 1500U); // Ensure maximum size of 1500 bytes
+
+    Ptr<Packet> packet = Create<Packet>(packetSize);
+
+    // Add timestamp to packet
+    TimeTag timestamp;
+    timestamp.SetTime(Simulator::Now());
+    packet->AddPacketTag(timestamp);
 
     // Set ToS (Traffic Class field)
     int tos = m_dscp << 2;
@@ -161,9 +168,17 @@ CustomTrafficGenerator::SendPacket()
     if (bytesSent > 0)
     {
         m_packetsSent++;
-        double nextTime = m_interPacketTime->GetValue();
-        NS_LOG_INFO("Sent packet #" << m_packetsSent << " of size " << m_packetSize
-                                    << " bytes, next in " << nextTime << "s");
+
+        double nextTime = m_precomputedInterarrival.front();
+        m_precomputedInterarrival.pop();
+        if (m_precomputedInterarrival.empty())
+        {
+            PrecomputeInterarrivalTimes(); // Refill queue when empty
+        }
+
+        NS_LOG_DEBUG("[Tx] Node " << GetNode()->GetId() << " → Pkt #" << m_packetsSent
+                                  << " | Size: " << packetSize << "B"
+                                  << " | Next: " << (nextTime * 1000) << "ms");
 
         // Schedule next packet
         m_sendEvent =
@@ -184,7 +199,21 @@ CustomTrafficGenerator::GetTotalPacketsSent() const
 uint32_t
 CustomTrafficGenerator::GetTotalBytesSent() const
 {
-    return m_packetsSent * m_packetSize;
+    return m_bytesSent;
+}
+
+void
+CustomTrafficGenerator::PrecomputeInterarrivalTimes()
+{
+    m_precomputedInterarrival = std::queue<double>();
+    for (int i = 0; i < 100; i++)
+    {
+        double packetSizeBits = static_cast<double>(m_packetSizeVar->GetValue()) * 8;
+        double meanInterarrivalTime = packetSizeBits / (m_dataRate * 1e6);
+        double jitter = m_jitterVar->GetValue();
+        double interarrivalTime = std::max(meanInterarrivalTime + jitter, 0.0);
+        m_precomputedInterarrival.push(interarrivalTime);
+    }
 }
 
 } // namespace ns3

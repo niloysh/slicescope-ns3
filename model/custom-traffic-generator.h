@@ -35,11 +35,16 @@ class CustomTrafficGenerator : public Application
     uint32_t m_maxPackets;
     EventId m_sendEvent;
     uint32_t m_packetsSent;
+    double m_bytesSent;
     double m_dataRate;
-    uint32_t m_packetSize;
     uint8_t m_dscp;
-    Ptr<ExponentialRandomVariable> m_interPacketTime;
     bool m_running;
+    Ptr<RandomVariableStream> m_packetSizeVar;
+    Ptr<RandomVariableStream> m_jitterVar;
+
+    // Precompute inter-arrival times for faster packet generation
+    void PrecomputeInterarrivalTimes();
+    std::queue<double> m_precomputedInterarrival;
 };
 
 } // namespace ns3

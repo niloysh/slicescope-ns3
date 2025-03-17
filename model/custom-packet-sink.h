@@ -16,7 +16,6 @@ struct FlowStats
 {
     uint64_t totalBytes;
     uint32_t totalPackets;
-    std::vector<double> timestamps;
 };
 
 class CustomPacketSink : public Application
@@ -26,9 +25,8 @@ class CustomPacketSink : public Application
 
     CustomPacketSink();
     ~CustomPacketSink() override;
-    void PrintStats() const;
-    uint32_t GetTotalPackets() const;
-    uint32_t GetTotalBytes() const;
+    uint32_t GetTotalPacketsReceived() const;
+    uint32_t GetTotalBytesReceived() const;
     std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> GetFlowStats() const;
 
   private:
@@ -47,6 +45,13 @@ class CustomPacketSink : public Application
     uint64_t m_totalBytes;
     uint32_t m_totalPackets;
     std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> m_flowStats;
+    std::vector<double> m_rtt;
+
+    double m_firstPacketTime = 0.0;
+    double m_lastPacketTime = 0.0;
+    EventId m_dataRateEvent;
+    void ComputeDataRate();
+    bool m_computeDataRate = false;
 };
 
 } // namespace ns3
