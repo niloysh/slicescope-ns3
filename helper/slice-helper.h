@@ -26,7 +26,6 @@ class SliceHelper : public Object
     void ReportSliceStats();
 
   private:
-    uint32_t m_numSlices;
     double m_simulationDuration;
     uint32_t m_maxPackets;
     uint32_t m_numApps;

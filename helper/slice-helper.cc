@@ -38,8 +38,7 @@ SliceHelper::GetTypeId()
 }
 
 SliceHelper::SliceHelper()
-    : m_numSlices(2),
-      m_simulationDuration(10.0),
+    : m_simulationDuration(10.0),
       m_maxPackets(2),
       m_numApps(1)
 {
