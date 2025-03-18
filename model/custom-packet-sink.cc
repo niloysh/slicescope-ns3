@@ -4,6 +4,7 @@
 
 #include "ns3/boolean.h"
 #include "ns3/inet-socket-address.h"
+#include "ns3/ipv4.h"
 #include "ns3/log.h"
 #include "ns3/simulator.h"
 #include "ns3/udp-socket-factory.h"
@@ -60,11 +61,14 @@ CustomPacketSink::StartApplication()
     if (!m_socket)
     {
         m_socket = Socket::CreateSocket(GetNode(), UdpSocketFactory::GetTypeId());
-        InetSocketAddress localAddress(Ipv4Address::GetAny(), m_port);
+
+        Ptr<Ipv4> ipv4 = GetNode()->GetObject<Ipv4>();
+        Ipv4Address serverIp = ipv4->GetAddress(1, 0).GetLocal();
+        InetSocketAddress localAddress(serverIp, m_port);
         m_socket->Bind(localAddress);
         std::string className = this->GetInstanceTypeId().GetName();
-        NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Sink started → Listening on port "
-                             << m_port);
+        NS_LOG_INFO("[Node " << GetNode()->GetId() << "] Sink started → Listening on " << serverIp
+                             << ":" << m_port);
 
         m_socket->SetRecvCallback(MakeCallback(&CustomPacketSink::HandleRead, this));
 
@@ -176,13 +180,19 @@ CustomPacketSink::ComputeDataRate()
             double dataRateMbps = (m_totalBytes * 8) / (elapsedTime * 1e6); // Convert to Mbps
 
             NS_LOG_INFO("[DataRate] Node " << GetNode()->GetId() << " | " << dataRateMbps << " Mbps"
-                                           << " | Elapsed Time: " << elapsedTime << "s"
-                                           << " | Bytes Received: " << m_totalBytes);
+                                           << " | Time: " << elapsedTime << "s"
+                                           << " | Bytes: " << m_totalBytes);
         }
     }
 
     // Schedule next data rate computation
     m_dataRateEvent = Simulator::Schedule(Seconds(1.0), &CustomPacketSink::ComputeDataRate, this);
+}
+
+std::vector<double>
+CustomPacketSink::GetRtt() const
+{
+    return m_rtt;
 }
 
 } // namespace ns3

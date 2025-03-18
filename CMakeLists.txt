@@ -17,7 +17,7 @@ build_lib(
                  model/slicescope-header.cc
                  model/custom-packet-sink.cc
                  model/custom-traffic-generator.cc
-                 helper/slice-traffic-helper.cc
+                 helper/slice-helper.cc
                  model/simple-queue-disc.cc
                  helper/topology-helper.cc
                  helper/advanced-topology-helper.cc
@@ -27,7 +27,7 @@ build_lib(
                  model/slicescope-header.h
                  model/custom-packet-sink.h
                  model/custom-traffic-generator.h
-                 helper/slice-traffic-helper.h
+                 helper/slice-helper.h
                  model/time-tag.h
                  model/simple-queue-disc.h
                  helper/topology-helper.h

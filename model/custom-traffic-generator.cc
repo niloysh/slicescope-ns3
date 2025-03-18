@@ -149,7 +149,7 @@ CustomTrafficGenerator::SendPacket()
     }
 
     auto packetSize = static_cast<uint32_t>(m_packetSizeVar->GetValue());
-    packetSize = std::max(packetSize, 64U);   // Ensure minimum size of 64 bytes
+    packetSize = std::max(packetSize, 20U);   // Ensure minimum size of 20 bytes
     packetSize = std::min(packetSize, 1500U); // Ensure maximum size of 1500 bytes
 
     Ptr<Packet> packet = Create<Packet>(packetSize);

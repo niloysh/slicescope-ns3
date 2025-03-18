@@ -4,8 +4,12 @@
 #include "custom-traffic-generator.h"
 
 #include "ns3/double.h"
+#include "ns3/enum.h"
 #include "ns3/ipv4.h"
+#include "ns3/pointer.h"
 #include "ns3/uinteger.h"
+
+#include <sys/types.h>
 
 namespace ns3
 {
@@ -16,19 +20,69 @@ const std::unordered_map<Slice::SliceType, uint8_t> Slice::dscpMap = {{Slice::eM
                                                                       {Slice::URLLC, 46},
                                                                       {Slice::mMTC, 8}};
 
-Slice::Slice(SliceType sliceType,
-             uint32_t sliceId,
-             Ptr<Node> sourceNode,
-             Ptr<Node> sinkNode,
-             const SliceParams& params)
-    : m_sliceId(sliceId),
-      m_sliceType(sliceType),
-      m_sourceNode(sourceNode),
-      m_sinkNode(sinkNode),
-      m_params(params)
+uint32_t Slice::_m_sliceId = 0;
+
+TypeId
+Slice::GetTypeId()
 {
-    NS_LOG_INFO("Creating slice " << m_sliceId << " of type " << m_sliceType);
-    auto it = dscpMap.find(sliceType);
+    static TypeId tid =
+        TypeId("ns3::Slice")
+            .SetParent<Object>()
+            .SetGroupName("Applications")
+            .AddConstructor<Slice>()
+            .AddAttribute("SliceType",
+                          "The type of slice (eMBB, URLLC, mMTC)",
+                          EnumValue(eMBB),
+                          MakeEnumAccessor<SliceType>(&Slice::m_sliceType),
+                          MakeEnumChecker<SliceType>(eMBB, "eMBB", URLLC, "URLLC", mMTC, "mMTC"))
+            .AddAttribute("SourceNode",
+                          "The source node for the slice.",
+                          PointerValue(),
+                          MakePointerAccessor(&Slice::m_sourceNode),
+                          MakePointerChecker<Node>())
+            .AddAttribute("SinkNode",
+                          "The sink node for the slice.",
+                          PointerValue(),
+                          MakePointerAccessor(&Slice::m_sinkNode),
+                          MakePointerChecker<Node>())
+            .AddAttribute("NumApps",
+                          "Number of applications in this slice.",
+                          UintegerValue(2),
+                          MakeUintegerAccessor(&Slice::m_numApps),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("MaxPackets",
+                          "Maximum number of packets to send per application. 0 means unlimited.",
+                          UintegerValue(1),
+                          MakeUintegerAccessor(&Slice::m_maxPackets),
+                          MakeUintegerChecker<uint32_t>())
+            .AddAttribute("StartTime",
+                          "The start time for the slice.",
+                          DoubleValue(0.0),
+                          MakeDoubleAccessor(&Slice::m_startTime),
+                          MakeDoubleChecker<double>())
+            .AddAttribute("StopTime",
+                          "The stop time for the slice.",
+                          DoubleValue(10.0),
+                          MakeDoubleAccessor(&Slice::m_stopTime),
+                          MakeDoubleChecker<double>());
+
+    return tid;
+}
+
+Slice::Slice()
+{
+}
+
+Slice::~Slice()
+{
+}
+
+void
+Slice::Configure()
+{
+    _m_sliceId++;
+    m_sliceId = _m_sliceId;
+    auto it = dscpMap.find(m_sliceType);
     if (it != dscpMap.end())
     {
         m_dscp = it->second;
@@ -38,52 +92,75 @@ Slice::Slice(SliceType sliceType,
         NS_LOG_WARN("Slice type not found in DSCP map, defaulting dscp to 0");
         m_dscp = 0;
     }
-}
 
-Slice::~Slice()
-{
+    if (m_sliceType == eMBB)
+    {
+        m_packetSizeVar = CreateObject<UniformRandomVariable>();
+        m_packetSizeVar->SetAttribute("Min", DoubleValue(100));
+        m_packetSizeVar->SetAttribute("Max", DoubleValue(1500));
+
+        m_dataRateVar = CreateObject<UniformRandomVariable>();
+        m_dataRateVar->SetAttribute("Min", DoubleValue(10));
+        m_dataRateVar->SetAttribute("Max", DoubleValue(100));
+    }
+
+    else if (m_sliceType == URLLC)
+    {
+        m_packetSizeVar = CreateObject<UniformRandomVariable>();
+        m_packetSizeVar->SetAttribute("Min", DoubleValue(20));
+        m_packetSizeVar->SetAttribute("Max", DoubleValue(250));
+
+        m_dataRateVar = CreateObject<UniformRandomVariable>();
+        m_dataRateVar->SetAttribute("Min", DoubleValue(1));
+        m_dataRateVar->SetAttribute("Max", DoubleValue(10));
+    }
+
+    else
+    {
+        m_packetSizeVar = CreateObject<UniformRandomVariable>();
+        m_packetSizeVar->SetAttribute("Min", DoubleValue(20));
+        m_packetSizeVar->SetAttribute("Max", DoubleValue(100));
+
+        m_dataRateVar = CreateObject<UniformRandomVariable>();
+        m_dataRateVar->SetAttribute("Min", DoubleValue(0.1));
+        m_dataRateVar->SetAttribute("Max", DoubleValue(1));
+    }
 }
 
 void
 Slice::InstallApps()
 {
-    NS_LOG_INFO("Installing apps for slice " << m_sliceId);
-
-    Ptr<UniformRandomVariable> rateVar = CreateObject<UniformRandomVariable>();
-    rateVar->SetAttribute("Min", DoubleValue(m_params.minRateMbps));
-    rateVar->SetAttribute("Max", DoubleValue(m_params.maxRateMbps));
-
-    Ptr<UniformRandomVariable> sizeVar = CreateObject<UniformRandomVariable>();
-    sizeVar->SetAttribute("Min", UintegerValue(m_params.minPacketSize));
-    sizeVar->SetAttribute("Max", UintegerValue(m_params.maxPacketSize));
-
-    Ptr<UniformRandomVariable> numAppsVar = CreateObject<UniformRandomVariable>();
-    numAppsVar->SetAttribute("Min", UintegerValue(m_params.minApps));
-    numAppsVar->SetAttribute("Max", UintegerValue(m_params.maxApps));
-
-    uint32_t numApps = numAppsVar->GetInteger();
-    NS_LOG_INFO("Slice " << m_sliceId << " has " << numApps << " applications");
+    Slice::Configure();
+    NS_LOG_INFO(
+        "[Slice] ID: " << m_sliceId << " | Type: "
+                       << (m_sliceType == eMBB ? "eMBB" : (m_sliceType == URLLC ? "URLLC" : "mMTC"))
+                       << " | Node " << m_sourceNode->GetId() << " → Node " << m_sinkNode->GetId()
+                       << " | NumApps: " << m_numApps << " | StartTime: " << m_startTime
+                       << " | StopTime: " << m_stopTime);
 
     Ipv4Address destIp = m_sinkNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
     uint16_t basePort = 5000 + (m_sliceId * 10);
 
-    for (uint32_t i = 0; i < numApps; ++i)
+    double sourceStopTime = std::max(0.0, m_stopTime - 1.0);
+
+    for (uint32_t i = 0; i < m_numApps; ++i)
     {
         uint16_t port = basePort + i;
 
-        double rateMbps = rateVar->GetValue();
-        uint32_t packetSize = sizeVar->GetInteger();
-
-        NS_LOG_INFO("App " << i << " - DataRate: " << rateMbps
-                           << " Mbps, PacketSize: " << packetSize << " bytes, Port: " << port);
+        double rateMbps =
+            std::max(0.1,
+                     std::min(m_dataRateVar->GetValue(), 100.0)); // Clamp between 0.1 and 100 Mbps
 
         // Create traffic generator (source)
         Ptr<CustomTrafficGenerator> trafficGenerator = CreateObject<CustomTrafficGenerator>();
         trafficGenerator->SetAttribute("DestIp", Ipv4AddressValue(destIp));
         trafficGenerator->SetAttribute("DestPort", UintegerValue(port));
         trafficGenerator->SetAttribute("DataRate", DoubleValue(rateMbps));
-        trafficGenerator->SetAttribute("PacketSize", UintegerValue(packetSize));
+        trafficGenerator->SetAttribute("PacketSizeVar", PointerValue(m_packetSizeVar));
         trafficGenerator->SetAttribute("Dscp", UintegerValue(m_dscp));
+        trafficGenerator->SetAttribute("MaxPackets", UintegerValue(m_maxPackets));
+        trafficGenerator->SetStartTime(Seconds(m_startTime));
+        trafficGenerator->SetStopTime(Seconds(sourceStopTime));
 
         ApplicationContainer sourceApp;
         sourceApp.Add(trafficGenerator);
@@ -93,15 +170,43 @@ Slice::InstallApps()
         // Create packet sink (destination)
         Ptr<CustomPacketSink> packetSink = CreateObject<CustomPacketSink>();
         packetSink->SetAttribute("Port", UintegerValue(port));
+        packetSink->SetStartTime(Seconds(m_startTime));
+        packetSink->SetStopTime(Seconds(m_stopTime));
 
         ApplicationContainer sinkApp;
         sinkApp.Add(packetSink);
         m_sinkNode->AddApplication(packetSink);
         m_sinkApps.push_back(sinkApp);
 
-        NS_LOG_INFO("Installed app " << i << " from Node " << m_sourceNode->GetId() << " to Node "
-                                     << m_sinkNode->GetId());
+        NS_LOG_INFO("[App] Slice " << m_sliceId << " | " << "App #" << i << " | Node "
+                                   << m_sourceNode->GetId() << " → Node " << m_sinkNode->GetId()
+                                   << " | Port: " << port << " | Rate: " << rateMbps << " Mbps"
+                                   << " | MaxPackets: " << m_maxPackets);
     }
+}
+
+std::vector<ApplicationContainer>
+Slice::GetSourceApps()
+{
+    return m_sourceApps;
+}
+
+std::vector<ApplicationContainer>
+Slice::GetSinkApps()
+{
+    return m_sinkApps;
+}
+
+uint32_t
+Slice::GetSliceId() const
+{
+    return m_sliceId;
+}
+
+Slice::SliceType
+Slice::GetSliceType() const
+{
+    return m_sliceType;
 }
 
 } // namespace ns3

@@ -35,7 +35,7 @@ main(int argc, char* argv[])
 
     LogComponentEnable("Example_14", LOG_LEVEL_INFO);
     LogComponentEnable("CustomPacketSink", LOG_LEVEL_INFO);
-    LogComponentEnable("CustomTrafficGenerator", LOG_LEVEL_INFO);
+    LogComponentEnable("CustomTrafficGenerator", LOG_LEVEL_DEBUG);
 
     AdvancedTopologyHelper topo;
     PointToPointHelper p2pHosts;
@@ -80,8 +80,8 @@ main(int argc, char* argv[])
 
     // Create generator applications
     ApplicationContainer generatorApps;
-    generatorApps.Add(CreateGenerator(hosts.Get(0), 0));
-    generatorApps.Add(CreateGenerator(hosts.Get(1), 0));
+    generatorApps.Add(CreateGenerator(hosts.Get(0), 2));
+    generatorApps.Add(CreateGenerator(hosts.Get(1), 3));
 
     // Set start/stop times
     sinkApp->SetStartTime(Seconds(1.0));
@@ -104,9 +104,17 @@ main(int argc, char* argv[])
         totalPacketsSent += generator->GetTotalPacketsSent();
     }
 
+    std::vector<double> rtt = sinkApp->GetRtt();
+    double rttMin = *std::min_element(rtt.begin(), rtt.end());
+    double rttMax = *std::max_element(rtt.begin(), rtt.end());
+    double rttAvg = std::accumulate(rtt.begin(), rtt.end(), 0.0) / rtt.size();
+
     NS_LOG_INFO("==== Simulation Summary ====");
     NS_LOG_INFO("Total sent: " << totalPacketsSent << " packets");
     NS_LOG_INFO("Total received: " << totalPacketsReceived << " packets");
+    NS_LOG_INFO("RTT min: " << rttMin * 1000 << "ms");
+    NS_LOG_INFO("RTT max: " << rttMax * 1000 << "ms");
+    NS_LOG_INFO("RTT avg: " << rttAvg * 1000 << "ms");
     NS_LOG_INFO("==== End Simulation ====");
 
     Simulator::Destroy();

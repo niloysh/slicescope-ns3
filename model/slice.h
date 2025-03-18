@@ -10,8 +10,9 @@
 namespace ns3
 {
 
-class Slice
+class Slice : public Object
 {
+  public:
     enum SliceType
     {
         eMBB,
@@ -19,39 +20,34 @@ class Slice
         mMTC
     };
 
-    struct SliceParams
-    {
-        double minRateMbps = 1.0;
-        double maxRateMbps = 5.0;
-        uint32_t minPacketSize = 100;
-        uint32_t maxPacketSize = 1500;
-        uint32_t minApps = 1;
-        uint32_t maxApps = 2;
-    };
-
     static const std::unordered_map<SliceType, uint8_t> dscpMap;
 
-    Slice(SliceType sliceType,
-          uint32_t sliceId,
-          Ptr<Node> sourceNode,
-          Ptr<Node> sinkNode,
-          const SliceParams& params);
+    Slice();
+    ~Slice() override;
 
-    ~Slice();
-
+    static TypeId GetTypeId();
+    void Configure();
     void InstallApps();
     std::vector<ApplicationContainer> GetSourceApps();
     std::vector<ApplicationContainer> GetSinkApps();
+    uint32_t GetSliceId() const;
+    SliceType GetSliceType() const;
 
   private:
+    static uint32_t _m_sliceId;
     uint32_t m_sliceId;
     SliceType m_sliceType;
     Ptr<Node> m_sourceNode;
     Ptr<Node> m_sinkNode;
-    SliceParams m_params;
     std::vector<ApplicationContainer> m_sourceApps;
     std::vector<ApplicationContainer> m_sinkApps;
     uint8_t m_dscp;
+    uint32_t m_numApps;
+    uint32_t m_maxPackets;
+    Ptr<RandomVariableStream> m_dataRateVar;
+    Ptr<RandomVariableStream> m_packetSizeVar;
+    double m_startTime;
+    double m_stopTime;
 };
 } // namespace ns3
 
