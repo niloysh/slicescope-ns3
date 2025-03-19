@@ -20,7 +20,8 @@ build_lib(
                  helper/slice-helper.cc
                  model/custom-queue-disc.cc
                  helper/topology-helper.cc
-                 helper/advanced-topology-helper.cc
+                 helper/linear-topology-helper.cc
+                 helper/fat-tree-topology-helper.cc
                  model/slice.cc
                  model/metadata-tag.cc
     HEADER_FILES helper/slicescope-switch-helper.h
@@ -32,7 +33,8 @@ build_lib(
                  model/time-tag.h
                  model/custom-queue-disc.h
                  helper/topology-helper.h
-                 helper/advanced-topology-helper.h
+                 helper/linear-topology-helper.h
+                    helper/fat-tree-topology-helper.h
                  model/slice.h
                  model/metadata-tag.h
     LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point}
