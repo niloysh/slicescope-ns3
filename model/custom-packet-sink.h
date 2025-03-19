@@ -28,7 +28,7 @@ class CustomPacketSink : public Application
     uint32_t GetTotalPacketsReceived() const;
     uint32_t GetTotalBytesReceived() const;
     std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> GetFlowStats() const;
-    std::vector<double> GetRtt() const;
+    std::vector<double> GetOwd() const;
 
   private:
     void StartApplication() override;
@@ -46,7 +46,7 @@ class CustomPacketSink : public Application
     uint64_t m_totalBytes;
     uint32_t m_totalPackets;
     std::map<std::pair<Ipv4Address, uint16_t>, FlowStats> m_flowStats;
-    std::vector<double> m_rtt;
+    std::vector<double> m_owd;
 
     double m_firstPacketTime = 0.0;
     double m_lastPacketTime = 0.0;

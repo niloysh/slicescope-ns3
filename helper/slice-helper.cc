@@ -118,10 +118,10 @@ SliceHelper::ReportSliceStats()
     for (auto& slice : m_slices)
     {
         uint32_t totalPackets = 0;
-        double minRtt = std::numeric_limits<double>::max();
-        double maxRtt = 0;
-        double sumRtt = 0;
-        uint32_t countRtt = 0;
+        double minOwd = std::numeric_limits<double>::max();
+        double maxOwd = 0;
+        double sumOwd = 0;
+        uint32_t countOwd = 0;
 
         auto sinks = slice->GetSinkApps();
         for (auto& sinkApp : sinks)
@@ -133,27 +133,27 @@ SliceHelper::ReportSliceStats()
             }
 
             totalPackets += sink->GetTotalPacketsReceived();
-            auto rttValues = sink->GetRtt();
+            auto owdValues = sink->GetOwd();
 
-            for (double rtt : rttValues)
+            for (double owd : owdValues)
             {
-                if (rtt < minRtt)
+                if (owd < minOwd)
                 {
-                    minRtt = rtt;
+                    minOwd = owd;
                 }
-                if (rtt > maxRtt)
+                if (owd > maxOwd)
                 {
-                    maxRtt = rtt;
+                    maxOwd = owd;
                 }
-                sumRtt += rtt;
-                countRtt++;
+                sumOwd += owd;
+                countOwd++;
             }
         }
 
-        double avgRtt = (countRtt > 0) ? sumRtt / countRtt : 0.0;
-        if (minRtt == std::numeric_limits<double>::max())
+        double avgRtt = (countOwd > 0) ? sumOwd / countOwd : 0.0;
+        if (minOwd == std::numeric_limits<double>::max())
         {
-            minRtt = 0.0;
+            minOwd = 0.0;
         }
 
         NS_LOG_INFO("[Slice " << slice->GetSliceId() << "]"
@@ -162,10 +162,10 @@ SliceHelper::ReportSliceStats()
                                       ? "eMBB"
                                       : (slice->GetSliceType() == Slice::URLLC ? "URLLC" : "mMTC"))
                               << " |"
-                              << " Packets: " << totalPackets << " | Min RTT: " << (minRtt * 1000)
+                              << " Packets: " << totalPackets << " | Min OWD: " << (minOwd * 1000)
                               << " ms"
-                              << " | Max RTT: " << (maxRtt * 1000) << " ms"
-                              << " | Avg RTT: " << (avgRtt * 1000) << " ms");
+                              << " | Max OWD: " << (maxOwd * 1000) << " ms"
+                              << " | Avg OWD: " << (avgRtt * 1000) << " ms");
     }
 }
 

@@ -124,7 +124,7 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
         {
             double sentTime = tag.GetTime().GetSeconds();
             double rtt = receiveTime - sentTime;
-            m_rtt.push_back(rtt);
+            m_owd.push_back(rtt);
         }
 
         InetSocketAddress senderAddress = InetSocketAddress::ConvertFrom(from);
@@ -147,7 +147,7 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
                                   << srcIp << ":" << srcPort << " → " << destIp << ":" << destPort
                                   << " | " << packet->GetSize() << "B"
                                   << " | Time: " << receiveTime << "s"
-                                  << " | RTT: " << (m_rtt.back() * 1000) << "ms");
+                                  << " | OWD: " << (m_owd.back() * 1000) << "ms");
     }
 }
 
@@ -190,9 +190,9 @@ CustomPacketSink::ComputeDataRate()
 }
 
 std::vector<double>
-CustomPacketSink::GetRtt() const
+CustomPacketSink::GetOwd() const
 {
-    return m_rtt;
+    return m_owd;
 }
 
 } // namespace ns3
