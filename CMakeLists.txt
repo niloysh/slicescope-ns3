@@ -18,10 +18,11 @@ build_lib(
                  model/custom-packet-sink.cc
                  model/custom-traffic-generator.cc
                  helper/slice-helper.cc
-                 model/simple-queue-disc.cc
+                 model/custom-queue-disc.cc
                  helper/topology-helper.cc
                  helper/advanced-topology-helper.cc
                  model/slice.cc
+                 model/metadata-tag.cc
     HEADER_FILES helper/slicescope-switch-helper.h
                  model/slicescope-switch-net-device.h
                  model/slicescope-header.h
@@ -29,10 +30,11 @@ build_lib(
                  model/custom-traffic-generator.h
                  helper/slice-helper.h
                  model/time-tag.h
-                 model/simple-queue-disc.h
+                 model/custom-queue-disc.h
                  helper/topology-helper.h
                  helper/advanced-topology-helper.h
                  model/slice.h
+                 model/metadata-tag.h
     LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}

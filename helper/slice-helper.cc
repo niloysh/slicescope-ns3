@@ -57,25 +57,36 @@ SliceHelper::CreateSlices(NodeContainer sources, NodeContainer sinks, uint32_t n
     m_slices.reserve(numSlices);
     NS_LOG_INFO("[SliceHelper] Creating " << numSlices << " slices...");
 
+    Ptr<UniformRandomVariable> randVarSourceSink = CreateObject<UniformRandomVariable>();
+    randVarSourceSink->SetStream(8);
+
+    Ptr<UniformRandomVariable> randVarStartTime = CreateObject<UniformRandomVariable>();
+    randVarStartTime->SetStream(9);
+
+    Ptr<UniformRandomVariable> randVarSliceType = CreateObject<UniformRandomVariable>();
+    randVarSliceType->SetStream(10);
+
     for (uint32_t i = 0; i < numSlices; ++i)
     {
         // Randomly pick source and sink
-        uint32_t srcIdx = rand() % sources.GetN();
-        uint32_t sinkIdx = rand() % sinks.GetN();
+
+        uint32_t srcIdx = randVarSourceSink->GetInteger(0, sources.GetN() - 1);
+        uint32_t sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
+
         Ptr<Node> sourceNode = sources.Get(srcIdx);
         Ptr<Node> sinkNode = sinks.Get(sinkIdx);
 
         // Ensure source and sink are not the same
         while (sourceNode == sinkNode && sources.GetN() > 1)
         {
-            sinkIdx = rand() % sinks.GetN();
+            sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
             sinkNode = sinks.Get(sinkIdx);
         }
 
-        double startTime = (double)rand() / RAND_MAX * (m_simulationDuration / 2.0);
+        double startTime = randVarStartTime->GetValue(0.0, m_simulationDuration / 2.0);
         double stopTime = m_simulationDuration;
 
-        auto sliceType = static_cast<Slice::SliceType>(rand() % 3);
+        auto sliceType = static_cast<Slice::SliceType>(randVarSliceType->GetInteger(0, 2));
 
         Ptr<Slice> slice = CreateObject<Slice>();
         slice->SetAttribute("SliceType", EnumValue(sliceType));
@@ -88,15 +99,6 @@ SliceHelper::CreateSlices(NodeContainer sources, NodeContainer sinks, uint32_t n
         slice->InstallApps();
 
         m_slices.push_back(slice);
-
-        NS_LOG_INFO(
-            "[SliceHelper] Created Slice #"
-            << i << " | Type: "
-            << (sliceType == Slice::eMBB ? "eMBB" : (sliceType == Slice::URLLC ? "URLLC" : "mMTC"))
-            << " | Node " << sourceNode->GetId() << " → Node " << sinkNode->GetId()
-            << " | Start: " << startTime << "s"
-            << " | Stop: " << stopTime << "s"
-            << " | MaxPackets: " << m_maxPackets << " | NumApps: " << m_numApps);
     }
 
     return m_slices;

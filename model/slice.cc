@@ -8,6 +8,7 @@
 #include "ns3/ipv4.h"
 #include "ns3/pointer.h"
 #include "ns3/uinteger.h"
+#include <ns3/names.h>
 
 #include <sys/types.h>
 
@@ -131,12 +132,17 @@ void
 Slice::InstallApps()
 {
     Slice::Configure();
-    NS_LOG_INFO(
-        "[Slice] ID: " << m_sliceId << " | Type: "
-                       << (m_sliceType == eMBB ? "eMBB" : (m_sliceType == URLLC ? "URLLC" : "mMTC"))
-                       << " | Node " << m_sourceNode->GetId() << " → Node " << m_sinkNode->GetId()
-                       << " | NumApps: " << m_numApps << " | StartTime: " << m_startTime
-                       << " | StopTime: " << m_stopTime);
+
+    std::string sliceTypeStr =
+        (m_sliceType == eMBB ? "eMBB" : (m_sliceType == URLLC ? "URLLC" : "mMTC"));
+
+    std::string sourceNodeName = Names::FindName(m_sourceNode);
+    std::string sinkNodeName = Names::FindName(m_sinkNode);
+
+    NS_LOG_INFO("[Slice] ID: " << m_sliceId << " | Type: " << sliceTypeStr << " | "
+                               << sourceNodeName << " → " << sinkNodeName
+                               << " | StartTime: " << m_startTime << " | StopTime: " << m_stopTime
+                               << " | MaxPackets: " << m_maxPackets << " | NumApps: " << m_numApps);
 
     Ipv4Address destIp = m_sinkNode->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
     uint16_t basePort = 5000 + (m_sliceId * 10);
@@ -178,10 +184,11 @@ Slice::InstallApps()
         m_sinkNode->AddApplication(packetSink);
         m_sinkApps.push_back(sinkApp);
 
-        NS_LOG_INFO("[App] Slice " << m_sliceId << " | " << "App #" << i << " | Node "
-                                   << m_sourceNode->GetId() << " → Node " << m_sinkNode->GetId()
-                                   << " | Port: " << port << " | Rate: " << rateMbps << " Mbps"
-                                   << " | MaxPackets: " << m_maxPackets);
+        NS_LOG_DEBUG("[App] Slice " << m_sliceId << " | "
+                                    << "App #" << i << " | Node " << m_sourceNode->GetId()
+                                    << " → Node " << m_sinkNode->GetId() << " | Port: " << port
+                                    << " | Rate: " << rateMbps << " Mbps"
+                                    << " | MaxPackets: " << m_maxPackets);
     }
 }
 

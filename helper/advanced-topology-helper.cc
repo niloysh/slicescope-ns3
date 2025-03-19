@@ -7,6 +7,7 @@ NS_LOG_COMPONENT_DEFINE("AdvancedTopologyHelper");
 
 AdvancedTopologyHelper::AdvancedTopologyHelper()
 {
+    topoHelper = CreateObject<TopologyHelper>();
 }
 
 AdvancedTopologyHelper::~AdvancedTopologyHelper()
@@ -16,18 +17,19 @@ AdvancedTopologyHelper::~AdvancedTopologyHelper()
 void
 AdvancedTopologyHelper::SetHostChannelHelper(PointToPointHelper p2pHosts)
 {
-    topoHelper.SetHostChannelHelper(p2pHosts);
+    topoHelper->SetHostChannelHelper(p2pHosts);
 }
 
 void
 AdvancedTopologyHelper::SetSwitchChannelHelper(PointToPointHelper p2pSwitches)
 {
-    topoHelper.SetSwitchChannelHelper(p2pSwitches);
+    topoHelper->SetSwitchChannelHelper(p2pSwitches);
 }
 
 void
 AdvancedTopologyHelper::CreateLinearTopology(uint32_t numNodes)
 {
+    NS_LOG_INFO("Creating linear topology with " << numNodes << " nodes...");
     std::vector<std::pair<uint32_t, uint32_t>> hostSwitchLinks;
     std::vector<std::pair<uint32_t, uint32_t>> interSwitchLinks;
 
@@ -42,12 +44,13 @@ AdvancedTopologyHelper::CreateLinearTopology(uint32_t numNodes)
         interSwitchLinks.emplace_back(i, i + 1); // Switch i connected to Switch i+1
     }
 
-    topoHelper.CreateTopology(hostSwitchLinks, interSwitchLinks);
+    topoHelper->CreateTopology(hostSwitchLinks, interSwitchLinks);
 }
 
 void
 AdvancedTopologyHelper::CreateTreeTopology(uint32_t depth, uint32_t fanout)
 {
+    NS_LOG_INFO("Creating tree topology with depth " << depth << " and fanout " << fanout << "...");
     std::vector<std::pair<uint32_t, uint32_t>> hostSwitchLinks;
     std::vector<std::pair<uint32_t, uint32_t>> interSwitchLinks;
 
@@ -87,19 +90,25 @@ AdvancedTopologyHelper::CreateTreeTopology(uint32_t depth, uint32_t fanout)
         }
     }
 
-    topoHelper.CreateTopology(hostSwitchLinks, interSwitchLinks);
+    topoHelper->CreateTopology(hostSwitchLinks, interSwitchLinks);
 }
 
 NodeContainer
 AdvancedTopologyHelper::GetHosts()
 {
-    return topoHelper.GetHosts();
+    return topoHelper->GetHosts();
 }
 
 NodeContainer
 AdvancedTopologyHelper::GetSwitches()
 {
-    return topoHelper.GetSwitches();
+    return topoHelper->GetSwitches();
+}
+
+Ptr<TopologyHelper>
+AdvancedTopologyHelper::GetTopologyHelper()
+{
+    return topoHelper;
 }
 
 } // namespace ns3

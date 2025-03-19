@@ -35,9 +35,10 @@ class AdvancedTopologyHelper
 
     NodeContainer GetHosts();
     NodeContainer GetSwitches();
+    Ptr<TopologyHelper> GetTopologyHelper();
 
   private:
-    TopologyHelper topoHelper;
+    Ptr<TopologyHelper> topoHelper;
 };
 } // namespace ns3
 

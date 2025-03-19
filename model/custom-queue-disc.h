@@ -1,14 +1,17 @@
-#ifndef SIMPLE_QUEUE_DISC_H
-#define SIMPLE_QUEUE_DISC_H
+#ifndef CUSTOM_QUEUE_DISC_H
+#define CUSTOM_QUEUE_DISC_H
 
+#include "ns3/net-device.h"
 #include "ns3/queue-disc.h"
+#include <ns3/node.h>
+#include <ns3/slice.h>
 
 #include <vector>
 
 namespace ns3
 {
 
-class SimpleQueueDisc : public QueueDisc
+class CustomQueueDisc : public QueueDisc
 {
   public:
     /**
@@ -17,13 +20,15 @@ class SimpleQueueDisc : public QueueDisc
      */
     static TypeId GetTypeId();
 
-    SimpleQueueDisc();
-    ~SimpleQueueDisc() override;
+    CustomQueueDisc();
+    ~CustomQueueDisc() override;
 
     /**
      * \brief Print queue statistics (e.g., delays).
      */
     void PrintQueueStatistics();
+    Ptr<NetDevice> GetNetDevice() const;
+    static const std::unordered_map<Slice::SliceType, uint32_t> queueIndexMap;
 
   private:
     bool DoEnqueue(Ptr<QueueDiscItem> item) override;
@@ -39,13 +44,15 @@ class SimpleQueueDisc : public QueueDisc
      */
     uint32_t GetQueueIndexFromDscp(uint8_t dscp) const;
 
-    std::vector<std::vector<ns3::Time>> m_queueDelays; // Queue delays for each queue
-    std::vector<uint32_t> m_maxQueueSize;              // Maximum queue size for each queue
-    std::vector<uint32_t> m_weights;                   // Weights for each queue
-    std::vector<uint32_t> m_deficit;                   // Deficit counters for each queue
-    uint32_t m_lastServedQueue;                        // Index of the last served queue
+    std::vector<std::vector<ns3::Time>> m_queueDelays;
+    std::vector<uint32_t> m_maxQueueSize; // Max queue size for each slice type
+    std::vector<uint32_t> m_weights;      // Weights for each queue
+    uint32_t m_lastServedQueue;           // Index of the last served queue
+    Ptr<NetDevice> m_netDevice;
+    Ptr<Node> m_node;
+    uint32_t m_port;
 
-    static constexpr const char* SLICE_NAMES[3] = {"URLLC", "eMBB", "mMTC"}; // Queue names
+    static constexpr const char* SLICE_TYPES[3] = {"URLLC", "eMBB", "mMTC"}; // Queue names
 };
 
 } // namespace ns3

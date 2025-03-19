@@ -6,6 +6,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
+#include "ns3/queue-disc-container.h"
 #include "ns3/string.h"
 
 #include <cstdint>
@@ -13,11 +14,12 @@
 namespace ns3
 {
 
-class TopologyHelper
+class TopologyHelper : public Object
 {
   public:
+    static TypeId GetTypeId();
     TopologyHelper();
-    ~TopologyHelper();
+    ~TopologyHelper() override;
 
     /**
      * \brief Method to manually create the topology based on host-switch and inter-switch links
@@ -32,6 +34,7 @@ class TopologyHelper
 
     NodeContainer GetSwitches();
     NodeContainer GetHosts();
+    QueueDiscContainer GetQueueDiscs();
 
   private:
     NodeContainer switches;
@@ -42,6 +45,8 @@ class TopologyHelper
     std::vector<NodeContainer> nodePairsInterSwitch;
     std::vector<NetDeviceContainer> devicePairsInterSwitch;
     std::vector<Ipv4InterfaceContainer> interfacePairs;
+    std::map<Ptr<Node>, NetDeviceContainer> switchNetDevices; // Switch to net device (port) mapping
+    QueueDiscContainer allQueueDiscs;
 
     InternetStackHelper internet;
     PointToPointHelper p2pHosts;
@@ -71,6 +76,8 @@ class TopologyHelper
      * @param devicePairs A vector of net device containers representing the device pairs
      */
     void AssignIPAddresses(std::vector<NetDeviceContainer>& devicePairs);
+    void SetQueueDiscs(std::map<Ptr<Node>, NetDeviceContainer> switchNetDevices);
+    bool m_customQueueDiscs;
 };
 
 } // namespace ns3
