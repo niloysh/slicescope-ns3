@@ -17,9 +17,18 @@ namespace ns3
 
 NS_LOG_COMPONENT_DEFINE("Slice");
 
-const std::unordered_map<Slice::SliceType, uint8_t> Slice::dscpMap = {{Slice::eMBB, 40},
-                                                                      {Slice::URLLC, 46},
-                                                                      {Slice::mMTC, 8}};
+const std::unordered_map<Slice::SliceType, uint8_t> Slice::sliceTypeToDscpMap = {{Slice::URLLC, 46},
+                                                                                 {Slice::eMBB, 40},
+                                                                                 {Slice::mMTC, 8}};
+
+const std::unordered_map<uint8_t, Slice::SliceType> Slice::dscpToSliceTypeMap = {{46, Slice::URLLC},
+                                                                                 {40, Slice::eMBB},
+                                                                                 {8, Slice::mMTC}};
+
+const std::unordered_map<Slice::SliceType, std::string> Slice::sliceTypeToStrMap = {
+    {Slice::URLLC, "URLLC"},
+    {Slice::eMBB, "eMBB"},
+    {Slice::mMTC, "mMTC"}};
 
 uint32_t Slice::_m_sliceId = 0;
 
@@ -83,8 +92,8 @@ Slice::Configure()
 {
     _m_sliceId++;
     m_sliceId = _m_sliceId;
-    auto it = dscpMap.find(m_sliceType);
-    if (it != dscpMap.end())
+    auto it = sliceTypeToDscpMap.find(m_sliceType);
+    if (it != sliceTypeToDscpMap.end())
     {
         m_dscp = it->second;
     }
@@ -133,8 +142,7 @@ Slice::InstallApps()
 {
     Slice::Configure();
 
-    std::string sliceTypeStr =
-        (m_sliceType == eMBB ? "eMBB" : (m_sliceType == URLLC ? "URLLC" : "mMTC"));
+    const std::string& sliceTypeStr = sliceTypeToStrMap.at(m_sliceType);
 
     std::string sourceNodeName = Names::FindName(m_sourceNode);
     std::string sinkNodeName = Names::FindName(m_sinkNode);

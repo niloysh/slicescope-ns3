@@ -101,12 +101,13 @@ TopologyHelper::SetQueueDiscs(std::map<Ptr<Node>, NetDeviceContainer> switchNetD
         for (uint32_t i = 0; i < netDevices.GetN(); i++)
         {
             Ptr<NetDevice> device = netDevices.Get(i);
-            Ptr<QueueDisc> queueDisc = queueDiscs.Get(i);
+            Ptr<CustomQueueDisc> queueDisc = DynamicCast<CustomQueueDisc>(queueDiscs.Get(i));
             NS_LOG_DEBUG("[TopologyHelper] Installing QueueDisc on " << nodeName << " port "
                                                                      << i + 1);
             queueDisc->SetAttribute("Node", PointerValue(node));
             queueDisc->SetAttribute("NetDevice", PointerValue(device));
             queueDisc->SetAttribute("Port", UintegerValue(i + 1));
+            queueDisc->SetQueueWeights(sliceTypeToQueueWeightMap);
 
             allQueueDiscs.Add(queueDisc);
         }
@@ -139,6 +140,21 @@ TopologyHelper::MapSwitchesToNetDevices()
                 switchNetDevices[node].Add(netDevice);
             }
         }
+    }
+}
+
+void
+TopologyHelper::SetQueueWeights(std::map<Slice::SliceType, uint32_t> sliceTypeToQueueWeightMap)
+{
+    for (uint32_t i = 0; i < allQueueDiscs.GetN(); i++)
+    {
+        Ptr<CustomQueueDisc> queueDisc = DynamicCast<CustomQueueDisc>(allQueueDiscs.Get(i));
+        if (!queueDisc)
+        {
+            continue;
+        }
+
+        queueDisc->SetQueueWeights(sliceTypeToQueueWeightMap);
     }
 }
 

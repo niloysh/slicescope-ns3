@@ -3,6 +3,7 @@
 
 #include "ns3/net-device.h"
 #include "ns3/queue-disc.h"
+#include <ns3/drop-tail-queue.h>
 #include <ns3/node.h>
 #include <ns3/slice.h>
 
@@ -28,7 +29,9 @@ class CustomQueueDisc : public QueueDisc
      */
     void PrintQueueStatistics();
     Ptr<NetDevice> GetNetDevice() const;
-    static const std::unordered_map<Slice::SliceType, uint32_t> queueIndexMap;
+    static const std::unordered_map<Slice::SliceType, uint32_t> sliceTypeToQueueIndexMap;
+    static const std::unordered_map<uint32_t, Slice::SliceType> queueIndexToSliceTypeMap;
+    void SetQueueWeights(std::map<Slice::SliceType, uint32_t> queueWeights);
 
   private:
     bool DoEnqueue(Ptr<QueueDiscItem> item) override;
@@ -36,23 +39,16 @@ class CustomQueueDisc : public QueueDisc
     Ptr<const QueueDiscItem> DoPeek() override;
     bool CheckConfig() override;
     void InitializeParams() override;
-
-    /**
-     * \brief Get the queue index based on the DSCP value.
-     * \param dscp The DSCP value of the packet.
-     * \return The queue index (0 for URLLC, 1 for eMBB, 2 for mMTC).
-     */
     uint32_t GetQueueIndexFromDscp(uint8_t dscp) const;
 
     std::vector<std::vector<ns3::Time>> m_queueDelays;
-    std::vector<uint32_t> m_maxQueueSize; // Max queue size for each slice type
-    std::vector<uint32_t> m_weights;      // Weights for each queue
-    uint32_t m_lastServedQueue;           // Index of the last served queue
+    std::vector<uint32_t> m_maxPacketsinQueue;
+    std::vector<uint32_t> m_queueWeights;
+    uint32_t m_lastServedQueueIndex;
     Ptr<NetDevice> m_netDevice;
     Ptr<Node> m_node;
     uint32_t m_port;
-
-    static constexpr const char* SLICE_TYPES[3] = {"URLLC", "eMBB", "mMTC"}; // Queue names
+    std::vector<Ptr<DropTailQueue<QueueDiscItem>>> m_internalQueues;
 };
 
 } // namespace ns3

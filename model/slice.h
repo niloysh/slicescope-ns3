@@ -4,6 +4,7 @@
 #include "ns3/node.h"
 
 #include <cstdint>
+#include <string>
 #include <sys/types.h>
 #include <unordered_map>
 
@@ -20,7 +21,9 @@ class Slice : public Object
         mMTC
     };
 
-    static const std::unordered_map<SliceType, uint8_t> dscpMap;
+    static const std::unordered_map<SliceType, uint8_t> sliceTypeToDscpMap;
+    static const std::unordered_map<uint8_t, SliceType> dscpToSliceTypeMap;
+    static const std::unordered_map<SliceType, std::string> sliceTypeToStrMap;
 
     Slice();
     ~Slice() override;

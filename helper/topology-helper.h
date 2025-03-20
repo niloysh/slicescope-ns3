@@ -7,6 +7,7 @@
 #include "ns3/network-module.h"
 #include "ns3/point-to-point-module.h"
 #include "ns3/queue-disc-container.h"
+#include "ns3/slice.h"
 #include "ns3/string.h"
 
 #include <cstdint>
@@ -29,6 +30,8 @@ class TopologyHelper : public Object
     int m_subnetCounter;
     bool m_customQueueDiscs;
 
+    void SetQueueWeights(std::map<Slice::SliceType, uint32_t> sliceTypeToQueueWeightMap);
+
   protected:
     NodeContainer switches;
     NodeContainer hosts;
@@ -46,6 +49,9 @@ class TopologyHelper : public Object
     void MapSwitchesToNetDevices();
     void AssignIPAddresses(std::vector<NetDeviceContainer>& devicePairs);
     void SetQueueDiscs(std::map<Ptr<Node>, NetDeviceContainer> switchNetDevices);
+
+  private:
+    std::map<Slice::SliceType, uint32_t> sliceTypeToQueueWeightMap;
 };
 
 } // namespace ns3

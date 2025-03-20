@@ -123,8 +123,9 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
         if (packet->PeekPacketTag(tag))
         {
             double sentTime = tag.GetTime().GetSeconds();
-            double rtt = receiveTime - sentTime;
-            m_owd.push_back(rtt);
+            double owd = receiveTime - sentTime;
+            m_owd.push_back(owd);
+            m_owdRecords.emplace_back(Simulator::Now(), owd);
         }
 
         InetSocketAddress senderAddress = InetSocketAddress::ConvertFrom(from);
@@ -193,6 +194,12 @@ std::vector<double>
 CustomPacketSink::GetOwd() const
 {
     return m_owd;
+}
+
+std::vector<std::pair<Time, double>>
+CustomPacketSink::GetOwdRecords() const
+{
+    return m_owdRecords;
 }
 
 } // namespace ns3

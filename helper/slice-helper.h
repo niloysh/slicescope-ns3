@@ -24,6 +24,7 @@ class SliceHelper : public Object
 
     std::vector<Ptr<Slice>> GetSlices() const;
     void ReportSliceStats();
+    void ExportOwdRecords(std::string filename);
 
   private:
     double m_simulationDuration;

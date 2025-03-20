@@ -1,11 +1,14 @@
 #include "slice-helper.h"
 
 #include "ns3/custom-packet-sink.h"
+#include "ns3/custom-traffic-generator.h"
 #include "ns3/double.h"
 #include "ns3/enum.h"
 #include "ns3/log.h"
 #include "ns3/pointer.h"
 #include "ns3/uinteger.h"
+
+#include <sys/types.h>
 
 namespace ns3
 {
@@ -117,22 +120,27 @@ SliceHelper::ReportSliceStats()
 
     for (auto& slice : m_slices)
     {
-        uint32_t totalPackets = 0;
+        uint32_t totalRxPackets = 0;
+        uint32_t totalTxPackets = 0;
         double minOwd = std::numeric_limits<double>::max();
         double maxOwd = 0;
         double sumOwd = 0;
         uint32_t countOwd = 0;
 
         auto sinks = slice->GetSinkApps();
-        for (auto& sinkApp : sinks)
+        auto sources = slice->GetSourceApps();
+        for (size_t i = 0; i < sources.size(); ++i)
         {
-            Ptr<CustomPacketSink> sink = DynamicCast<CustomPacketSink>(sinkApp.Get(0));
+            Ptr<CustomPacketSink> sink = DynamicCast<CustomPacketSink>(sinks[i].Get(0));
+            Ptr<CustomTrafficGenerator> source =
+                DynamicCast<CustomTrafficGenerator>(sources[i].Get(0));
             if (!sink)
             {
                 continue;
             }
 
-            totalPackets += sink->GetTotalPacketsReceived();
+            totalRxPackets += sink->GetTotalPacketsReceived();
+            totalTxPackets += source->GetTotalPacketsSent();
             auto owdValues = sink->GetOwd();
 
             for (double owd : owdValues)
@@ -157,16 +165,66 @@ SliceHelper::ReportSliceStats()
         }
 
         NS_LOG_INFO("[Slice " << slice->GetSliceId() << "]"
-                              << " | Type: "
-                              << (slice->GetSliceType() == Slice::eMBB
-                                      ? "eMBB"
-                                      : (slice->GetSliceType() == Slice::URLLC ? "URLLC" : "mMTC"))
+                              << " | Type: " << Slice::sliceTypeToStrMap.at(slice->GetSliceType())
                               << " |"
-                              << " Packets: " << totalPackets << " | Min OWD: " << (minOwd * 1000)
-                              << " ms"
+                              << " Rx Packets: " << totalRxPackets
+                              << " | Dropped: " << (totalTxPackets - totalRxPackets)
+                              << " | Min OWD: " << (minOwd * 1000) << " ms"
                               << " | Max OWD: " << (maxOwd * 1000) << " ms"
                               << " | Avg OWD: " << (avgRtt * 1000) << " ms");
     }
+}
+
+void
+SliceHelper::ExportOwdRecords(std::string filename)
+{
+    NS_LOG_INFO("Exporting OWD records to " << filename);
+
+    std::vector<std::tuple<Time, double, uint32_t, std::string>> sliceOwdRecords;
+    for (auto slice : m_slices)
+    {
+        uint32_t sliceId = slice->GetSliceId();
+        std::string sliceTypeStr = Slice::sliceTypeToStrMap.at(slice->GetSliceType());
+        auto sinks = slice->GetSinkApps();
+        for (const auto& sinkApp : sinks)
+        {
+            Ptr<CustomPacketSink> sink = DynamicCast<CustomPacketSink>(sinkApp.Get(0));
+            if (!sink)
+            {
+                continue;
+            }
+
+            auto owdRecords = sink->GetOwdRecords();
+            for (const auto& record : owdRecords)
+            {
+                sliceOwdRecords.emplace_back(record.first, record.second, sliceId, sliceTypeStr);
+            }
+        }
+    }
+
+    // Sort by arrival time (first element in the tuple)
+    std::sort(sliceOwdRecords.begin(),
+              sliceOwdRecords.end(),
+              [](const std::tuple<Time, double, uint32_t, std::string>& a,
+                 const std::tuple<Time, double, uint32_t, std::string>& b) {
+                  return std::get<0>(a) < std::get<0>(b); // Sort by time
+              });
+
+    std::ofstream outFile(filename, std::ios::out);
+    outFile << "PacketArrivalTime(s),OWD(ms),SliceId,SliceType\n"; // CSV header
+
+    for (const auto& record : sliceOwdRecords)
+    {
+        double arrivalTimeSec = std::get<0>(record).GetSeconds();
+        double owdMs = std::get<1>(record) * 1000; // Convert to ms
+        uint32_t sliceId = std::get<2>(record);
+        std::string sliceType = std::get<3>(record);
+
+        outFile << arrivalTimeSec << "," << owdMs << "," << sliceId << "," << sliceType << "\n";
+    }
+
+    outFile.close();
+    NS_LOG_INFO("Successfully exported OWD records to " << filename);
 }
 
 } // namespace ns3

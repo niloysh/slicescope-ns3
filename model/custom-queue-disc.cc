@@ -20,10 +20,15 @@ namespace ns3
 NS_LOG_COMPONENT_DEFINE("CustomQueueDisc");
 NS_OBJECT_ENSURE_REGISTERED(CustomQueueDisc);
 
-const std::unordered_map<Slice::SliceType, uint32_t> CustomQueueDisc::queueIndexMap = {
+const std::unordered_map<Slice::SliceType, uint32_t> CustomQueueDisc::sliceTypeToQueueIndexMap = {
     {Slice::URLLC, 0},
     {Slice::eMBB, 1},
     {Slice::mMTC, 2}};
+
+const std::unordered_map<uint32_t, Slice::SliceType> CustomQueueDisc::queueIndexToSliceTypeMap = {
+    {0, Slice::URLLC},
+    {1, Slice::eMBB},
+    {2, Slice::mMTC}};
 
 TypeId
 CustomQueueDisc::GetTypeId()
@@ -53,9 +58,10 @@ CustomQueueDisc::GetTypeId()
 CustomQueueDisc::CustomQueueDisc()
 {
     m_queueDelays.resize(3);
-    m_maxQueueSize.resize(3);
-    m_weights = {6, 0, 0};
-    m_lastServedQueue = 0;
+    m_maxPacketsinQueue.resize(3);
+    m_queueWeights.resize(3);
+    m_queueWeights = {80, 15, 5}; // URLLC, eMBB, mMTC
+    m_lastServedQueueIndex = 0;
     m_node = nullptr;
     m_netDevice = nullptr;
     m_port = 0;
@@ -63,25 +69,17 @@ CustomQueueDisc::CustomQueueDisc()
 
 CustomQueueDisc::~CustomQueueDisc()
 {
-    // PrintQueueStatistics();
 }
 
 uint32_t
 CustomQueueDisc::GetQueueIndexFromDscp(uint8_t dscp) const
 {
-    if (dscp == Slice::dscpMap.at(Slice::URLLC))
+    auto it = sliceTypeToQueueIndexMap.find(Slice::dscpToSliceTypeMap.at(dscp));
+    if (it != sliceTypeToQueueIndexMap.end())
     {
-        return queueIndexMap.at(Slice::URLLC);
+        return it->second;
     }
-    if (dscp == Slice::dscpMap.at(Slice::eMBB))
-    {
-        return queueIndexMap.at(Slice::eMBB);
-    }
-    if (dscp == Slice::dscpMap.at(Slice::mMTC))
-    {
-        return queueIndexMap.at(Slice::mMTC);
-    }
-    return queueIndexMap.at(Slice::eMBB); // Default to eMBB
+    return 0; // Default to URLLC
 }
 
 bool
@@ -102,15 +100,15 @@ CustomQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 
     uint32_t queueIndex = GetQueueIndexFromDscp(ipv4Item->GetHeader().GetDscp());
 
-    m_maxQueueSize[queueIndex] =
-        std::max(m_maxQueueSize[queueIndex], GetInternalQueue(queueIndex)->GetNPackets());
+    m_maxPacketsinQueue[queueIndex] =
+        std::max(m_maxPacketsinQueue[queueIndex], GetInternalQueue(queueIndex)->GetNPackets());
 
     NS_LOG_DEBUG("[QueueDisc] Enqueueing packet on "
                  << nodeName << " port " << m_port << " | DSCP "
                  << static_cast<uint32_t>(ipv4Item->GetHeader().GetDscp()) << " | Queue "
-                 << SLICE_TYPES[queueIndex]
+                 << Slice::sliceTypeToStrMap.at(queueIndexToSliceTypeMap.at(queueIndex))
                  << " | Queue size: " << GetInternalQueue(queueIndex)->GetNPackets()
-                 << " | Max queue size: " << m_maxQueueSize[queueIndex]);
+                 << " | Max queue size: " << m_maxPacketsinQueue[queueIndex]);
 
     return GetInternalQueue(queueIndex)->Enqueue(item);
 }
@@ -118,38 +116,49 @@ CustomQueueDisc::DoEnqueue(Ptr<QueueDiscItem> item)
 Ptr<QueueDiscItem>
 CustomQueueDisc::DoDequeue()
 {
-    for (uint32_t i = 0; i < m_weights.size(); i++)
+    static uint32_t currentQueueIndex = 0;
+    // Packets served from each queue
+    static std::vector<uint32_t> packetsServed(m_queueWeights.size(), 0);
+
+    uint32_t numQueues = m_queueWeights.size();
+
+    for (uint32_t i = 0; i < numQueues; i++)
     {
-        uint32_t queueIndex = (m_lastServedQueue + i) % m_weights.size();
+        uint32_t queueIndex = (currentQueueIndex + i) % numQueues;
         if (!GetInternalQueue(queueIndex)->IsEmpty())
         {
             Ptr<QueueDiscItem> item = GetInternalQueue(queueIndex)->Dequeue();
-
             MetadataTag metadataTag;
             item->GetPacket()->RemovePacketTag(metadataTag);
             Time ingressTimestamp = metadataTag.GetIngressTimestamp();
             Time queueDelay = Simulator::Now() - ingressTimestamp;
             m_queueDelays[queueIndex].push_back(queueDelay);
 
-            NS_LOG_DEBUG("[QueueDisc] Dequeueing packet from "
-                         << Names::FindName(m_node) << " port " << m_port << " | DSCP "
-                         << static_cast<uint32_t>(
-                                DynamicCast<Ipv4QueueDiscItem>(item)->GetHeader().GetDscp())
-                         << " | Queue " << SLICE_TYPES[queueIndex]
-                         << " | Queue size: " << GetInternalQueue(queueIndex)->GetNPackets()
-                         << " | Queue delay: " << queueDelay.GetMilliSeconds() << " ms");
+            packetsServed[queueIndex]++;
+            if (packetsServed[queueIndex] >= m_queueWeights[queueIndex])
+            {
+                packetsServed[queueIndex] = 0;
+                currentQueueIndex = (queueIndex + 1) % numQueues; // Move to the next queue
+            }
 
-            m_lastServedQueue = queueIndex;
             return item;
         }
     }
+
     return nullptr; // No packets in any queue
 }
 
 Ptr<const QueueDiscItem>
 CustomQueueDisc::DoPeek()
 {
-    return nullptr;
+    for (uint32_t i = 0; i < m_queueWeights.size(); i++)
+    {
+        if (!GetInternalQueue(i)->IsEmpty())
+        {
+            return GetInternalQueue(i)->Peek();
+        }
+    }
+    return nullptr; // No packets in any queue
 }
 
 bool
@@ -159,10 +168,9 @@ CustomQueueDisc::CheckConfig()
     AddInternalQueue(CreateObject<DropTailQueue<QueueDiscItem>>()); // eMBB
     AddInternalQueue(CreateObject<DropTailQueue<QueueDiscItem>>()); // mMTC
 
-    for (uint32_t i = 0; i < GetNInternalQueues(); ++i)
-    {
-        GetInternalQueue(i)->SetMaxSize(QueueSize("200p")); // Set max size to 100 packets
-    }
+    GetInternalQueue(0)->SetMaxSize(QueueSize("20KB"));  // URLLC
+    GetInternalQueue(1)->SetMaxSize(QueueSize("500KB")); // eMBB
+    GetInternalQueue(2)->SetMaxSize(QueueSize("200KB")); // mMTC
 
     return true;
 }
@@ -180,7 +188,7 @@ CustomQueueDisc::PrintQueueStatistics()
         if (!m_queueDelays[i].empty())
         {
             std::sort(m_queueDelays[i].begin(), m_queueDelays[i].end());
-            uint32_t maxQueueSize = m_maxQueueSize[i];
+            uint32_t maxQueueSize = m_maxPacketsinQueue[i];
             double maxQueueDelay = m_queueDelays[i].back().GetMilliSeconds();
 
             double averageQueueDelay = 0;
@@ -190,11 +198,27 @@ CustomQueueDisc::PrintQueueStatistics()
             }
             averageQueueDelay /= m_queueDelays[i].size();
 
-            NS_LOG_INFO("[QueueDisc] Node: " << Names::FindName(m_node) << " | Port: " << m_port
-                                             << " | Queue: " << SLICE_TYPES[i]
-                                             << " | Max size: " << maxQueueSize
-                                             << " | Max delay: " << maxQueueDelay << " ms"
-                                             << " | Average delay: " << averageQueueDelay << " ms");
+            NS_LOG_INFO("[QueueDisc] Node: "
+                        << Names::FindName(m_node) << " | Port: " << m_port << " | Queue: "
+                        << Slice::sliceTypeToStrMap.at(queueIndexToSliceTypeMap.at(i))
+                        << " | Max size: " << maxQueueSize << " | Max delay: " << maxQueueDelay
+                        << " ms"
+                        << " | Average delay: " << averageQueueDelay << " ms");
+        }
+    }
+}
+
+void
+CustomQueueDisc::SetQueueWeights(std::map<Slice::SliceType, uint32_t> queueWeights)
+{
+    for (const auto& it : queueWeights)
+    {
+        auto sliceType = it.first;
+        auto weight = it.second;
+        auto it2 = sliceTypeToQueueIndexMap.find(sliceType);
+        if (it2 != sliceTypeToQueueIndexMap.end())
+        {
+            m_queueWeights[it2->second] = weight;
         }
     }
 }
