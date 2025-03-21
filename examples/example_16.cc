@@ -15,7 +15,7 @@ using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("Example_16");
 
-Time totalSimDuration = Seconds(10);
+Time totalSimDuration = Seconds(5);
 
 void
 ProgressCallback()
@@ -55,6 +55,8 @@ main(int argc, char* argv[])
     cmd.AddValue("topology", "Topology type (linear, fattree)", topologyType);
     cmd.Parse(argc, argv);
 
+    // Config::SetDefault("ns3::TcpSocket::SegmentSize", UintegerValue(1448));
+
     ns3::RngSeedManager::SetSeed(2); // seed 2
     ns3::RngSeedManager::SetRun(1);  // run 1
 
@@ -76,6 +78,7 @@ main(int argc, char* argv[])
 
     NodeContainer sources;
     NodeContainer sinks;
+    NodeContainer hosts;
 
     Ptr<TopologyHelper> topo;
 
@@ -96,7 +99,7 @@ main(int argc, char* argv[])
         linearTopo->SetSwitchChannelHelper(p2pSwitches);
         linearTopo->SetAttribute("CustomQueueDiscs", BooleanValue(true));
         linearTopo->CreateTopology(3);
-        NodeContainer hosts = linearTopo->GetHosts();
+        hosts = linearTopo->GetHosts();
 
         sources.Add(hosts.Get(0));
         sources.Add(hosts.Get(1));
@@ -105,15 +108,15 @@ main(int argc, char* argv[])
     else
     {
         PointToPointHelper p2pCoreToAgg;
-        p2pCoreToAgg.SetDeviceAttribute("DataRate", StringValue("400Mbps"));
+        p2pCoreToAgg.SetDeviceAttribute("DataRate", StringValue("2000Mbps"));
         p2pCoreToAgg.SetChannelAttribute("Delay", StringValue("1ms"));
 
         PointToPointHelper p2pAggToEdge;
-        p2pAggToEdge.SetDeviceAttribute("DataRate", StringValue("200Mbps"));
+        p2pAggToEdge.SetDeviceAttribute("DataRate", StringValue("500Mbps"));
         p2pAggToEdge.SetChannelAttribute("Delay", StringValue("1ms"));
 
         PointToPointHelper p2pEdgetoHost;
-        p2pEdgetoHost.SetDeviceAttribute("DataRate", StringValue("100Mbps"));
+        p2pEdgetoHost.SetDeviceAttribute("DataRate", StringValue("500Mbps"));
         p2pEdgetoHost.SetChannelAttribute("Delay", StringValue("1ms"));
 
         NS_LOG_INFO("Creating fat-tree topology...");
@@ -124,7 +127,7 @@ main(int argc, char* argv[])
         fatTreeTopo->SetEdgeToHostChannelHelper(p2pEdgetoHost);
         fatTreeTopo->SetAttribute("CustomQueueDiscs", BooleanValue(true));
         fatTreeTopo->CreateTopology(4);
-        NodeContainer hosts = fatTreeTopo->GetHosts();
+        hosts = fatTreeTopo->GetHosts();
 
         sources.Add(hosts.Get(0));
         sources.Add(hosts.Get(1));
@@ -138,9 +141,29 @@ main(int argc, char* argv[])
     Ptr<SliceHelper> sliceHelper = CreateObject<SliceHelper>();
     sliceHelper->SetAttribute("SimulationDuration", DoubleValue(totalSimDuration.GetSeconds()));
     sliceHelper->SetAttribute("MaxPackets", UintegerValue(0));
-    sliceHelper->SetAttribute("NumApps", UintegerValue(2));
+    sliceHelper->SetAttribute("NumApps", UintegerValue(0));
 
     std::vector<Ptr<Slice>> slices = sliceHelper->CreateSlices(sources, sinks, 3);
+
+    Ptr<Node> bgSource = hosts.Get(4);
+    Ptr<Node> bgSink = hosts.Get(14);
+
+    Ipv4Address bgSinkAddr = bgSink->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+    NS_LOG_INFO("Background traffic source: " << bgSource->GetId() << " | Sink: " << bgSink->GetId()
+                                              << " | Sink IP: " << bgSinkAddr);
+
+    BackgroundTrafficHelper bgHelper;
+
+    bgHelper.Install(BackgroundTrafficHelper::UDP,
+                     bgSource,
+                     bgSink,
+                     bgSinkAddr,
+                     1.0,
+                     4.0,
+                     "100Mbps",
+                     1024,
+                     0,
+                     0);
 
     Simulator::Schedule(Seconds(1.0), &ProgressCallback);
     Simulator::Stop(totalSimDuration);
@@ -151,6 +174,10 @@ main(int argc, char* argv[])
     QueueDiscContainer allQueueDiscs = topo->GetQueueDiscs();
     PrintQueueStatistics(allQueueDiscs);
     sliceHelper->ExportOwdRecords("owd_records.csv");
+
+    NS_LOG_INFO("Background bytes sent: " << bgHelper.GetTotalBytesSent());
+    NS_LOG_INFO("Background bytes received: " << bgHelper.GetTotalBytesReceived());
+
     Simulator::Destroy();
 
     return 0;

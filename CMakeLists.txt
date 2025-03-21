@@ -24,6 +24,7 @@ build_lib(
                  helper/fat-tree-topology-helper.cc
                  model/slice.cc
                  model/metadata-tag.cc
+                 helper/background-traffic-helper.cc
     HEADER_FILES helper/slicescope-switch-helper.h
                  model/slicescope-switch-net-device.h
                  model/slicescope-header.h
@@ -34,10 +35,11 @@ build_lib(
                  model/custom-queue-disc.h
                  helper/topology-helper.h
                  helper/linear-topology-helper.h
-                    helper/fat-tree-topology-helper.h
+                 helper/fat-tree-topology-helper.h
                  model/slice.h
                  model/metadata-tag.h
-    LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point}
+                 helper/background-traffic-helper.h
+    LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point} ${libapplications} ${libinternet-apps}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}
 )

@@ -74,12 +74,16 @@ CustomQueueDisc::~CustomQueueDisc()
 uint32_t
 CustomQueueDisc::GetQueueIndexFromDscp(uint8_t dscp) const
 {
+    if (dscp == 0)
+    {
+        return 1; // Default to eMBB
+    }
     auto it = sliceTypeToQueueIndexMap.find(Slice::dscpToSliceTypeMap.at(dscp));
     if (it != sliceTypeToQueueIndexMap.end())
     {
         return it->second;
     }
-    return 0; // Default to URLLC
+    return 1; // Default to eMBB
 }
 
 bool

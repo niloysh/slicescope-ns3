@@ -49,6 +49,7 @@ class Slice : public Object
     uint32_t m_maxPackets;
     Ptr<RandomVariableStream> m_dataRateVar;
     Ptr<RandomVariableStream> m_packetSizeVar;
+    Ptr<RandomVariableStream> m_numAppsVar;
     double m_startTime;
     double m_stopTime;
 };

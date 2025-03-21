@@ -57,7 +57,7 @@ Slice::GetTypeId()
                           MakePointerChecker<Node>())
             .AddAttribute("NumApps",
                           "Number of applications in this slice.",
-                          UintegerValue(2),
+                          UintegerValue(0),
                           MakeUintegerAccessor(&Slice::m_numApps),
                           MakeUintegerChecker<uint32_t>())
             .AddAttribute("MaxPackets",
@@ -112,6 +112,14 @@ Slice::Configure()
         m_dataRateVar = CreateObject<UniformRandomVariable>();
         m_dataRateVar->SetAttribute("Min", DoubleValue(10));
         m_dataRateVar->SetAttribute("Max", DoubleValue(100));
+
+        m_numAppsVar = CreateObject<UniformRandomVariable>();
+        m_numAppsVar->SetAttribute("Min", DoubleValue(5));
+        m_numAppsVar->SetAttribute("Max", DoubleValue(10));
+        if (m_numApps == 0)
+        {
+            m_numApps = m_numAppsVar->GetInteger();
+        }
     }
 
     else if (m_sliceType == URLLC)
@@ -123,6 +131,14 @@ Slice::Configure()
         m_dataRateVar = CreateObject<UniformRandomVariable>();
         m_dataRateVar->SetAttribute("Min", DoubleValue(1));
         m_dataRateVar->SetAttribute("Max", DoubleValue(10));
+
+        m_numAppsVar = CreateObject<UniformRandomVariable>();
+        m_numAppsVar->SetAttribute("Min", DoubleValue(1));
+        m_numAppsVar->SetAttribute("Max", DoubleValue(5));
+        if (m_numApps == 0)
+        {
+            m_numApps = m_numAppsVar->GetInteger();
+        }
     }
 
     else
@@ -134,6 +150,14 @@ Slice::Configure()
         m_dataRateVar = CreateObject<UniformRandomVariable>();
         m_dataRateVar->SetAttribute("Min", DoubleValue(0.1));
         m_dataRateVar->SetAttribute("Max", DoubleValue(1));
+
+        m_numAppsVar = CreateObject<UniformRandomVariable>();
+        m_numAppsVar->SetAttribute("Min", DoubleValue(10));
+        m_numAppsVar->SetAttribute("Max", DoubleValue(50));
+        if (m_numApps == 0)
+        {
+            m_numApps = m_numAppsVar->GetInteger();
+        }
     }
 }
 
