@@ -54,9 +54,16 @@ SliceHelper::SetAttribute(std::string name, const AttributeValue& value)
 }
 
 std::vector<Ptr<Slice>>
-SliceHelper::CreateSlices(NodeContainer sources, NodeContainer sinks, uint32_t numSlices)
+SliceHelper::CreateSlices(NodeContainer sources,
+                          NodeContainer sinks,
+                          std::map<Slice::SliceType, uint32_t> numSlicesPerType)
 {
     m_slices.clear();
+    uint32_t numSlices = 0;
+    for (const auto& [sliceType, count] : numSlicesPerType)
+    {
+        numSlices += count;
+    }
     m_slices.reserve(numSlices);
     NS_LOG_INFO("[SliceHelper] Creating " << numSlices << " slices...");
 
@@ -69,39 +76,38 @@ SliceHelper::CreateSlices(NodeContainer sources, NodeContainer sinks, uint32_t n
     Ptr<UniformRandomVariable> randVarSliceType = CreateObject<UniformRandomVariable>();
     randVarSliceType->SetStream(10);
 
-    for (uint32_t i = 0; i < numSlices; ++i)
+    for (const auto& [sliceType, count] : numSlicesPerType)
     {
-        // Randomly pick source and sink
-
-        uint32_t srcIdx = randVarSourceSink->GetInteger(0, sources.GetN() - 1);
-        uint32_t sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
-
-        Ptr<Node> sourceNode = sources.Get(srcIdx);
-        Ptr<Node> sinkNode = sinks.Get(sinkIdx);
-
-        // Ensure source and sink are not the same
-        while (sourceNode == sinkNode && sources.GetN() > 1)
+        for (uint32_t i = 0; i < count; ++i)
         {
-            sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
-            sinkNode = sinks.Get(sinkIdx);
+            // Same logic for picking src/sink
+            uint32_t srcIdx = randVarSourceSink->GetInteger(0, sources.GetN() - 1);
+            uint32_t sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
+
+            Ptr<Node> sourceNode = sources.Get(srcIdx);
+            Ptr<Node> sinkNode = sinks.Get(sinkIdx);
+
+            while (sourceNode == sinkNode && sources.GetN() > 1)
+            {
+                sinkIdx = randVarSourceSink->GetInteger(0, sinks.GetN() - 1);
+                sinkNode = sinks.Get(sinkIdx);
+            }
+
+            double startTime = randVarStartTime->GetValue(0.0, m_simulationDuration / 2.0);
+            double stopTime = m_simulationDuration;
+
+            Ptr<Slice> slice = CreateObject<Slice>();
+            slice->SetAttribute("SliceType", EnumValue(sliceType));
+            slice->SetAttribute("SourceNode", PointerValue(sourceNode));
+            slice->SetAttribute("SinkNode", PointerValue(sinkNode));
+            slice->SetAttribute("StartTime", DoubleValue(startTime));
+            slice->SetAttribute("StopTime", DoubleValue(stopTime));
+            slice->SetAttribute("MaxPackets", UintegerValue(m_maxPackets));
+            slice->SetAttribute("NumApps", UintegerValue(m_numApps));
+            slice->InstallApps();
+
+            m_slices.push_back(slice);
         }
-
-        double startTime = randVarStartTime->GetValue(0.0, m_simulationDuration / 2.0);
-        double stopTime = m_simulationDuration;
-
-        auto sliceType = static_cast<Slice::SliceType>(randVarSliceType->GetInteger(0, 2));
-
-        Ptr<Slice> slice = CreateObject<Slice>();
-        slice->SetAttribute("SliceType", EnumValue(sliceType));
-        slice->SetAttribute("SourceNode", PointerValue(sourceNode));
-        slice->SetAttribute("SinkNode", PointerValue(sinkNode));
-        slice->SetAttribute("StartTime", DoubleValue(startTime));
-        slice->SetAttribute("StopTime", DoubleValue(stopTime));
-        slice->SetAttribute("MaxPackets", UintegerValue(m_maxPackets));
-        slice->SetAttribute("NumApps", UintegerValue(m_numApps));
-        slice->InstallApps();
-
-        m_slices.push_back(slice);
     }
 
     return m_slices;

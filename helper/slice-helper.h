@@ -20,7 +20,7 @@ class SliceHelper : public Object
 
     std::vector<Ptr<Slice>> CreateSlices(NodeContainer sources,
                                          NodeContainer sinks,
-                                         uint32_t numSlices);
+                                         std::map<Slice::SliceType, uint32_t> numSlicesPerType);
 
     std::vector<Ptr<Slice>> GetSlices() const;
     void ReportSliceStats();
