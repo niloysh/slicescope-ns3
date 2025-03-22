@@ -25,6 +25,7 @@ build_lib(
                  model/slice.cc
                  model/metadata-tag.cc
                  helper/background-traffic-helper.cc
+                 helper/fiveg-topology-helper.cc
     HEADER_FILES helper/slicescope-switch-helper.h
                  model/slicescope-switch-net-device.h
                  model/slicescope-header.h
@@ -39,6 +40,7 @@ build_lib(
                  model/slice.h
                  model/metadata-tag.h
                  helper/background-traffic-helper.h
+                    helper/fiveg-topology-helper.h
     LIBRARIES_TO_LINK ${libcore} ${libnetwork} ${libinternet} ${libcsma} ${libbridge} ${libnetwork} ${libpoint-to-point} ${libapplications} ${libinternet-apps}
     TEST_SOURCES test/slicescope-test-suite.cc
                  ${examples_as_tests_sources}
