@@ -35,7 +35,7 @@ FiveGTopologyHelper::FiveGTopologyHelper()
     m_preAggNodes.Create(2);
     m_aggNodes.Create(4);
     m_coreNodes.Create(3);
-    m_upfNodes.Create(1); // 1 at core and 1 at edge
+    m_upfNodes.Create(2); // 1 at core and 1 at edge
 
     hosts.Add(m_gnbNodes);
     hosts.Add(m_upfNodes);
@@ -89,20 +89,20 @@ FiveGTopologyHelper::CreateTopology()
     internet.Install(hosts);
     internet.Install(switches);
 
-    p2pGnbToAccess.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
+    p2pGnbToAccess.SetDeviceAttribute("DataRate", StringValue("10Mbps")); // 10 Gbps
     p2pGnbToAccess.SetChannelAttribute("Delay", StringValue("0.5ms"));
 
     PointToPointHelper p2pAccessToPreAgg;
-    p2pAccessToPreAgg.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
+    p2pAccessToPreAgg.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
     p2pAccessToPreAgg.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("25Gbps"));
+    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("25Mbps"));
     p2pPreAggToAgg.SetChannelAttribute("Delay", StringValue("2ms"));
 
-    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("40Gbps"));
+    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("40Mbps"));
     p2pAggRing.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("100Gbps"));
+    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("100Mbps")); // 100 Gbps
     p2pAggToCore.SetChannelAttribute("Delay", StringValue("5ms"));
 
     // Connect gNBs to corresponding access nodes
@@ -174,7 +174,7 @@ FiveGTopologyHelper::CreateTopology()
     devicePairs.push_back(devicePair);
 
     // connect core nodes to UPF at the core
-    devicePair = CreateLink(m_coreNodes.Get(2), m_upfNodes.Get(0), p2pAggToCore);
+    devicePair = CreateLink(m_coreNodes.Get(2), m_upfNodes.Get(1), p2pAggToCore);
     devicePairs.push_back(devicePair);
 
     AssignIPAddresses(devicePairs);

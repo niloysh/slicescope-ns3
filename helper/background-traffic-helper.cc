@@ -136,4 +136,36 @@ BackgroundTrafficHelper::RxTrace(Ptr<const Packet> packet, const Address& addr)
     m_packetsReceived++;
 }
 
+void
+BackgroundTrafficHelper::InstallSaturatingTraffic(NodeContainer sources,
+                                                  NodeContainer sinks,
+                                                  double startTime,
+                                                  double stopTime,
+                                                  uint32_t packetSize,
+                                                  uint16_t basePort)
+{
+    for (uint32_t i = 0; i < sources.GetN(); ++i)
+    {
+        Ptr<Node> source = sources.Get(i);
+        Ptr<Node> sink = sinks.Get(i % sinks.GetN()); // round-robin
+        uint16_t port = basePort + i;
+
+        Ipv4Address sinkAddr = sink->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+
+        BulkSendHelper bulk("ns3::TcpSocketFactory", InetSocketAddress(sinkAddr, port));
+        bulk.SetAttribute("SendSize", UintegerValue(packetSize));
+        bulk.SetAttribute("MaxBytes", UintegerValue(0)); // unlimited
+
+        ApplicationContainer apps = bulk.Install(source);
+        apps.Start(Seconds(startTime));
+        apps.Stop(Seconds(stopTime));
+
+        PacketSinkHelper sinkHelper("ns3::TcpSocketFactory",
+                                    InetSocketAddress(Ipv4Address::GetAny(), port));
+        ApplicationContainer sinkApps = sinkHelper.Install(sink);
+        sinkApps.Start(Seconds(startTime));
+        sinkApps.Stop(Seconds(stopTime));
+    }
+}
+
 } // namespace ns3

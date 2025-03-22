@@ -40,6 +40,13 @@ class BackgroundTrafficHelper
                  uint32_t maxPackets,
                  uint32_t maxBytes);
 
+    void InstallSaturatingTraffic(NodeContainer sources,
+                                  NodeContainer sinks,
+                                  double startTime,
+                                  double stopTime,
+                                  uint32_t packetSize,
+                                  uint16_t basePort = 5000);
+
     uint64_t GetTotalBytesSent() const;
     uint64_t GetTotalBytesReceived() const;
     uint32_t GetTotalPacketsSent() const;

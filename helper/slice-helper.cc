@@ -139,7 +139,7 @@ SliceHelper::ReportSliceStats()
                 continue;
             }
 
-            totalRxPackets += sink->GetTotalPacketsReceived();
+            totalRxPackets += sink->GetTotalRxPackets();
             totalTxPackets += source->GetTotalPacketsSent();
             auto owdValues = sink->GetOwd();
 

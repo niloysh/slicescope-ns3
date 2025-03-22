@@ -42,8 +42,8 @@ CustomPacketSink::GetTypeId()
 CustomPacketSink::CustomPacketSink()
     : m_socket(nullptr),
       m_port(9),
-      m_totalBytes(0),
-      m_totalPackets(0)
+      m_totalRxBytes(0),
+      m_totalRxPackets(0)
 {
 }
 
@@ -110,14 +110,14 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
 
         double receiveTime = Simulator::Now().GetSeconds();
 
-        if (m_totalPackets == 0)
+        if (m_totalRxPackets == 0)
         {
             m_firstPacketTime = receiveTime;
         }
         m_lastPacketTime = receiveTime;
 
-        m_totalPackets++;
-        m_totalBytes += packet->GetSize();
+        m_totalRxPackets++;
+        m_totalRxBytes += packet->GetSize();
 
         TimeTag tag;
         if (packet->PeekPacketTag(tag))
@@ -144,7 +144,7 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
         Ipv4Address destIp = receiverAddress.GetIpv4();
         uint16_t destPort = receiverAddress.GetPort();
 
-        NS_LOG_DEBUG("[Rx] Node " << GetNode()->GetId() << " → Pkt #" << m_totalPackets << " | "
+        NS_LOG_DEBUG("[Rx] Node " << GetNode()->GetId() << " → Pkt #" << m_totalRxPackets << " | "
                                   << srcIp << ":" << srcPort << " → " << destIp << ":" << destPort
                                   << " | " << packet->GetSize() << "B"
                                   << " | Time: " << receiveTime << "s"
@@ -153,15 +153,15 @@ CustomPacketSink::HandleRead(Ptr<Socket> socket)
 }
 
 uint32_t
-CustomPacketSink::GetTotalPacketsReceived() const
+CustomPacketSink::GetTotalRxPackets() const
 {
-    return m_totalPackets;
+    return m_totalRxPackets;
 }
 
 uint32_t
-CustomPacketSink::GetTotalBytesReceived() const
+CustomPacketSink::GetTotalRx() const
 {
-    return m_totalBytes;
+    return m_totalRxBytes;
 }
 
 std::map<std::pair<Ipv4Address, uint16_t>, FlowStats>
@@ -173,16 +173,16 @@ CustomPacketSink::GetFlowStats() const
 void
 CustomPacketSink::ComputeDataRate()
 {
-    if (m_totalPackets > 0)
+    if (m_totalRxPackets > 0)
     {
         double elapsedTime = m_lastPacketTime - m_firstPacketTime;
         if (elapsedTime > 0)
         {
-            double dataRateMbps = (m_totalBytes * 8) / (elapsedTime * 1e6); // Convert to Mbps
+            double dataRateMbps = (m_totalRxBytes * 8) / (elapsedTime * 1e6); // Convert to Mbps
 
             NS_LOG_INFO("[DataRate] Node " << GetNode()->GetId() << " | " << dataRateMbps << " Mbps"
                                            << " | Time: " << elapsedTime << "s"
-                                           << " | Bytes: " << m_totalBytes);
+                                           << " | Bytes: " << m_totalRxBytes);
         }
     }
 
