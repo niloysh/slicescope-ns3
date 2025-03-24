@@ -12,6 +12,8 @@
 #include "ns3/packet-sink.h"
 #include "ns3/packet.h"
 
+#include <sys/types.h>
+
 namespace ns3
 {
 
@@ -33,6 +35,7 @@ class BackgroundTrafficHelper
                  Ptr<Node> source,
                  Ptr<Node> sink,
                  Ipv4Address sinkAddr,
+                 uint16_t port,
                  double startTime,
                  double stopTime,
                  std::string dataRate,
@@ -46,6 +49,26 @@ class BackgroundTrafficHelper
                                   double stopTime,
                                   uint32_t packetSize,
                                   uint16_t basePort = 5000);
+
+    void ScheduleRandomBurstsSrcDst(Ptr<Node> src,
+                                    Ptr<Node> dst,
+                                    Ipv4Address dstAddr,
+                                    uint16_t basePort,
+                                    double simulationEndTime,
+                                    uint32_t numBursts,
+                                    std::string minRate,
+                                    std::string maxRate,
+                                    double minDuration,
+                                    double maxDuration);
+
+    void ScheduleRandomBursts(NodeContainer sources,
+                              NodeContainer sinks,
+                              double simulationEndTime,
+                              uint32_t numBursts,
+                              std::string minRate,
+                              std::string maxRate,
+                              double minDuration,
+                              double maxDuration);
 
     uint64_t GetTotalBytesSent() const;
     uint64_t GetTotalBytesReceived() const;

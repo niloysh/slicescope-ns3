@@ -89,20 +89,20 @@ FiveGTopologyHelper::CreateTopology()
     internet.Install(hosts);
     internet.Install(switches);
 
-    p2pGnbToAccess.SetDeviceAttribute("DataRate", StringValue("10Mbps")); // 10 Gbps
+    p2pGnbToAccess.SetDeviceAttribute("DataRate", StringValue("1Gbps")); // 10 Gbps
     p2pGnbToAccess.SetChannelAttribute("Delay", StringValue("0.5ms"));
 
     PointToPointHelper p2pAccessToPreAgg;
-    p2pAccessToPreAgg.SetDeviceAttribute("DataRate", StringValue("10Mbps"));
+    p2pAccessToPreAgg.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
     p2pAccessToPreAgg.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("25Mbps"));
+    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("2Gbps"));
     p2pPreAggToAgg.SetChannelAttribute("Delay", StringValue("2ms"));
 
-    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("40Mbps"));
+    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("4Gbps"));
     p2pAggRing.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("100Mbps")); // 100 Gbps
+    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("10Gbps")); // 100 Gbps
     p2pAggToCore.SetChannelAttribute("Delay", StringValue("5ms"));
 
     // Connect gNBs to corresponding access nodes

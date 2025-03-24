@@ -73,8 +73,11 @@ SliceHelper::CreateSlices(NodeContainer sources,
     Ptr<UniformRandomVariable> randVarStartTime = CreateObject<UniformRandomVariable>();
     randVarStartTime->SetStream(9);
 
+    Ptr<UniformRandomVariable> randVarStopTime = CreateObject<UniformRandomVariable>();
+    randVarStopTime->SetStream(10);
+
     Ptr<UniformRandomVariable> randVarSliceType = CreateObject<UniformRandomVariable>();
-    randVarSliceType->SetStream(10);
+    randVarSliceType->SetStream(11);
 
     for (const auto& [sliceType, count] : numSlicesPerType)
     {
@@ -94,7 +97,7 @@ SliceHelper::CreateSlices(NodeContainer sources,
             }
 
             double startTime = randVarStartTime->GetValue(0.0, m_simulationDuration / 2.0);
-            double stopTime = m_simulationDuration;
+            double stopTime = randVarStopTime->GetValue(startTime, m_simulationDuration);
 
             Ptr<Slice> slice = CreateObject<Slice>();
             slice->SetAttribute("SliceType", EnumValue(sliceType));

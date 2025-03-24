@@ -14,6 +14,9 @@
 #include "ns3/packet.h"
 #include "ns3/string.h"
 
+#include <cstdint>
+#include <sys/types.h>
+
 namespace ns3
 {
 
@@ -22,6 +25,7 @@ BackgroundTrafficHelper::Install(TrafficType type,
                                  Ptr<Node> source,
                                  Ptr<Node> sink,
                                  Ipv4Address sinkAddr,
+                                 uint16_t port,
                                  double startTime,
                                  double stopTime,
                                  std::string dataRate = "100Mbps",
@@ -34,7 +38,6 @@ BackgroundTrafficHelper::Install(TrafficType type,
     m_packetsSent = 0;
     m_packetsReceived = 0;
 
-    uint16_t port = 9000 + static_cast<uint16_t>(type);
     std::string protocol = (type == BULK) ? "ns3::TcpSocketFactory" : "ns3::UdpSocketFactory";
 
     // Install sink
@@ -160,11 +163,100 @@ BackgroundTrafficHelper::InstallSaturatingTraffic(NodeContainer sources,
         apps.Start(Seconds(startTime));
         apps.Stop(Seconds(stopTime));
 
+        for (uint32_t j = 0; j < source->GetNDevices(); ++j)
+        {
+            Ptr<NetDevice> dev = source->GetDevice(j);
+            if (dev)
+            {
+                dev->TraceConnectWithoutContext(
+                    "PhyTxEnd",
+                    MakeCallback(&BackgroundTrafficHelper::TxTrace, this));
+            }
+        }
+
         PacketSinkHelper sinkHelper("ns3::TcpSocketFactory",
                                     InetSocketAddress(Ipv4Address::GetAny(), port));
         ApplicationContainer sinkApps = sinkHelper.Install(sink);
         sinkApps.Start(Seconds(startTime));
         sinkApps.Stop(Seconds(stopTime));
+
+        // Hook Rx for received bytes for all sinks
+        for (uint32_t j = 0; j < sinkApps.GetN(); ++j)
+        {
+            Ptr<PacketSink> sinkApp = DynamicCast<PacketSink>(sinkApps.Get(j));
+            sinkApp->TraceConnectWithoutContext(
+                "Rx",
+                MakeCallback(&BackgroundTrafficHelper::RxTrace, this));
+        }
+    }
+}
+
+void
+BackgroundTrafficHelper::ScheduleRandomBurstsSrcDst(Ptr<Node> src,
+                                                    Ptr<Node> dst,
+                                                    Ipv4Address dstAddr,
+                                                    uint16_t basePort,
+                                                    double simulationEndTime,
+                                                    uint32_t numBursts,
+                                                    std::string minRate,
+                                                    std::string maxRate,
+                                                    double minDuration,
+                                                    double maxDuration)
+{
+    Ptr<UniformRandomVariable> randStart = CreateObject<UniformRandomVariable>();
+    Ptr<UniformRandomVariable> randDuration = CreateObject<UniformRandomVariable>();
+    Ptr<UniformRandomVariable> randRate = CreateObject<UniformRandomVariable>();
+
+    DataRate minDataRate(minRate);
+    DataRate maxDataRate(maxRate);
+
+    for (uint32_t i = 0; i < numBursts; ++i)
+    {
+        uint16_t port = basePort + i;
+        double startTime = randStart->GetValue(0.0, simulationEndTime);
+        double duration = randDuration->GetValue(minDuration, maxDuration);
+        uint64_t rateBps = randRate->GetValue(minDataRate.GetBitRate(), maxDataRate.GetBitRate());
+        uint64_t rateMbps = rateBps / 1e6;
+        std::string rateStr = std::to_string(rateMbps) + "Mbps";
+
+        BackgroundTrafficHelper::Install(UDP,
+                                         src,
+                                         dst,
+                                         dstAddr,
+                                         port,
+                                         startTime,
+                                         startTime + duration,
+                                         rateStr);
+    }
+}
+
+void
+BackgroundTrafficHelper::ScheduleRandomBursts(NodeContainer sources,
+                                              NodeContainer sinks,
+                                              double simulationEndTime,
+                                              uint32_t numBursts,
+                                              std::string minRate,
+                                              std::string maxRate,
+                                              double minDuration,
+                                              double maxDuration)
+{
+    for (uint32_t i = 0; i < sources.GetN(); ++i)
+    {
+        Ptr<Node> src = sources.Get(i);
+        Ptr<Node> dst = sinks.Get(i % sinks.GetN()); // round-robin
+        Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
+        uint16_t basePort = 9000 + i * numBursts;
+
+        ScheduleRandomBurstsSrcDst(src,
+                                   dst,
+                                   dstAddr,
+                                   basePort,
+                                   simulationEndTime,
+                                   numBursts,
+                                   minRate,
+                                   maxRate,
+                                   minDuration,
+                                   maxDuration);
     }
 }
 
