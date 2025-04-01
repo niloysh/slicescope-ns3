@@ -7,6 +7,7 @@
 #include "ns3/internet-module.h"
 #include "ns3/ipv4-address.h"
 #include "ns3/log.h"
+#include "ns3/names.h"
 #include "ns3/node.h"
 #include "ns3/on-off-helper.h"
 #include "ns3/packet-sink-helper.h"
@@ -19,6 +20,8 @@
 
 namespace ns3
 {
+
+NS_LOG_COMPONENT_DEFINE("BackgroundTrafficHelper");
 
 void
 BackgroundTrafficHelper::Install(TrafficType type,
@@ -37,6 +40,9 @@ BackgroundTrafficHelper::Install(TrafficType type,
     m_bytesReceived = 0;
     m_packetsSent = 0;
     m_packetsReceived = 0;
+
+    std::string sourceName = Names::FindName(source);
+    std::string sinkName = Names::FindName(sink);
 
     std::string protocol = (type == BULK) ? "ns3::TcpSocketFactory" : "ns3::UdpSocketFactory";
 
@@ -61,6 +67,13 @@ BackgroundTrafficHelper::Install(TrafficType type,
         ApplicationContainer apps = client.Install(source);
         apps.Start(Seconds(startTime));
         apps.Stop(Seconds(stopTime));
+
+        NS_LOG_INFO("[BackgroundTraffic] " << sourceName << " → " << sinkName << " | Type: UDP"
+                                           << " | Port: " << port << " | PacketSize: " << packetSize
+                                           << " | MaxPackets: " << maxPackets
+                                           << " | Duration: " << (stopTime - startTime) << "s"
+                                           << " | Start: " << startTime << "s"
+                                           << " | Stop: " << stopTime << "s");
     }
     else if (type == ONOFF)
     {
@@ -73,6 +86,13 @@ BackgroundTrafficHelper::Install(TrafficType type,
         ApplicationContainer apps = onoff.Install(source);
         apps.Start(Seconds(startTime));
         apps.Stop(Seconds(stopTime));
+
+        NS_LOG_INFO("[BackgroundTraffic] " << sourceName << " → " << sinkName << " | Type: ONOFF"
+                                           << " | Port: " << port << " | Rate: " << dataRate
+                                           << " | PacketSize: " << packetSize
+                                           << " | Duration: " << (stopTime - startTime) << "s"
+                                           << " | Start: " << startTime << "s"
+                                           << " | Stop: " << stopTime << "s");
     }
     else if (type == BULK)
     {
@@ -83,6 +103,13 @@ BackgroundTrafficHelper::Install(TrafficType type,
         ApplicationContainer apps = bulk.Install(source);
         apps.Start(Seconds(startTime));
         apps.Stop(Seconds(stopTime));
+
+        NS_LOG_INFO("[BackgroundTraffic] " << sourceName << " → " << sinkName << " | Type: BULK"
+                                           << " | Port: " << port << " | PacketSize: " << packetSize
+                                           << " | MaxBytes: " << maxBytes
+                                           << " | Duration: " << (stopTime - startTime) << "s"
+                                           << " | Start: " << startTime << "s"
+                                           << " | Stop: " << stopTime << "s");
     }
 
     // Hook PhyTxEnd for sent bytes
@@ -192,7 +219,8 @@ BackgroundTrafficHelper::InstallSaturatingTraffic(NodeContainer sources,
 }
 
 void
-BackgroundTrafficHelper::ScheduleRandomBurstsSrcDst(Ptr<Node> src,
+BackgroundTrafficHelper::ScheduleRandomBurstsSrcDst(TrafficType type,
+                                                    Ptr<Node> src,
                                                     Ptr<Node> dst,
                                                     Ipv4Address dstAddr,
                                                     uint16_t basePort,
@@ -219,7 +247,7 @@ BackgroundTrafficHelper::ScheduleRandomBurstsSrcDst(Ptr<Node> src,
         uint64_t rateMbps = rateBps / 1e6;
         std::string rateStr = std::to_string(rateMbps) + "Mbps";
 
-        BackgroundTrafficHelper::Install(UDP,
+        BackgroundTrafficHelper::Install(type,
                                          src,
                                          dst,
                                          dstAddr,
@@ -231,7 +259,8 @@ BackgroundTrafficHelper::ScheduleRandomBurstsSrcDst(Ptr<Node> src,
 }
 
 void
-BackgroundTrafficHelper::ScheduleRandomBursts(NodeContainer sources,
+BackgroundTrafficHelper::ScheduleRandomBursts(TrafficType type,
+                                              NodeContainer sources,
                                               NodeContainer sinks,
                                               double simulationEndTime,
                                               uint32_t numBursts,
@@ -240,19 +269,20 @@ BackgroundTrafficHelper::ScheduleRandomBursts(NodeContainer sources,
                                               double minDuration,
                                               double maxDuration)
 {
-    for (uint32_t i = 0; i < sources.GetN(); ++i)
+    for (uint32_t i = 0; i < numBursts; ++i)
     {
-        Ptr<Node> src = sources.Get(i);
-        Ptr<Node> dst = sinks.Get(i % sinks.GetN()); // round-robin
+        Ptr<Node> src = sources.Get(i % sources.GetN());
+        Ptr<Node> dst = sinks.Get(i % sinks.GetN());
         Ipv4Address dstAddr = dst->GetObject<Ipv4>()->GetAddress(1, 0).GetLocal();
-        uint16_t basePort = 9000 + i * numBursts;
+        uint32_t basePort = 5000 + i;
 
-        ScheduleRandomBurstsSrcDst(src,
+        ScheduleRandomBurstsSrcDst(type,
+                                   src,
                                    dst,
                                    dstAddr,
                                    basePort,
                                    simulationEndTime,
-                                   numBursts,
+                                   1,
                                    minRate,
                                    maxRate,
                                    minDuration,

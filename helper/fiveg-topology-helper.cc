@@ -37,6 +37,9 @@ FiveGTopologyHelper::FiveGTopologyHelper()
     m_coreNodes.Create(3);
     m_upfNodes.Create(2); // 1 at core and 1 at edge
 
+    m_congestionSources.Create(2);
+    m_congestionSinks.Create(4);
+
     hosts.Add(m_gnbNodes);
     hosts.Add(m_upfNodes);
 
@@ -74,6 +77,16 @@ FiveGTopologyHelper::FiveGTopologyHelper()
     {
         Names::Add("UPF" + std::to_string(i), m_upfNodes.Get(i));
     }
+
+    for (uint32_t i = 0; i < m_congestionSources.GetN(); ++i)
+    {
+        Names::Add("CongestionSource" + std::to_string(i), m_congestionSources.Get(i));
+    }
+
+    for (uint32_t i = 0; i < m_congestionSinks.GetN(); ++i)
+    {
+        Names::Add("CongestionSink" + std::to_string(i), m_congestionSinks.Get(i));
+    }
 }
 
 FiveGTopologyHelper::~FiveGTopologyHelper()
@@ -88,6 +101,8 @@ FiveGTopologyHelper::CreateTopology()
     InternetStackHelper internet;
     internet.Install(hosts);
     internet.Install(switches);
+    internet.Install(m_congestionSources);
+    internet.Install(m_congestionSinks);
 
     p2pGnbToAccess.SetDeviceAttribute("DataRate", StringValue("1Gbps")); // 10 Gbps
     p2pGnbToAccess.SetChannelAttribute("Delay", StringValue("0.5ms"));
@@ -96,13 +111,13 @@ FiveGTopologyHelper::CreateTopology()
     p2pAccessToPreAgg.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
     p2pAccessToPreAgg.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("2Gbps"));
+    p2pPreAggToAgg.SetDeviceAttribute("DataRate", StringValue("2.5Gbps"));
     p2pPreAggToAgg.SetChannelAttribute("Delay", StringValue("2ms"));
 
-    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("4Gbps"));
+    p2pAggRing.SetDeviceAttribute("DataRate", StringValue("10Gbps"));
     p2pAggRing.SetChannelAttribute("Delay", StringValue("1ms"));
 
-    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("10Gbps")); // 100 Gbps
+    p2pAggToCore.SetDeviceAttribute("DataRate", StringValue("25Gbps")); // 100 Gbps
     p2pAggToCore.SetChannelAttribute("Delay", StringValue("5ms"));
 
     // Connect gNBs to corresponding access nodes
@@ -175,6 +190,27 @@ FiveGTopologyHelper::CreateTopology()
 
     // connect core nodes to UPF at the core
     devicePair = CreateLink(m_coreNodes.Get(2), m_upfNodes.Get(1), p2pAggToCore);
+    devicePairs.push_back(devicePair);
+
+    // connect congestion sources to access nodes
+    devicePair = CreateLink(m_congestionSources.Get(0), m_accessNodes.Get(0), p2pGnbToAccess);
+    devicePairs.push_back(devicePair);
+
+    devicePair = CreateLink(m_congestionSources.Get(1), m_accessNodes.Get(2), p2pGnbToAccess);
+    devicePairs.push_back(devicePair);
+
+    // connect congestion sinks to pre-aggregation nodes
+    devicePair = CreateLink(m_congestionSinks.Get(0), m_preAggNodes.Get(0), p2pPreAggToAgg);
+    devicePairs.push_back(devicePair);
+
+    devicePair = CreateLink(m_congestionSinks.Get(1), m_preAggNodes.Get(1), p2pPreAggToAgg);
+    devicePairs.push_back(devicePair);
+
+    // connect congestion sinks to aggregation nodes
+    devicePair = CreateLink(m_congestionSinks.Get(2), m_aggNodes.Get(0), p2pPreAggToAgg);
+    devicePairs.push_back(devicePair);
+
+    devicePair = CreateLink(m_congestionSinks.Get(3), m_aggNodes.Get(1), p2pPreAggToAgg);
     devicePairs.push_back(devicePair);
 
     AssignIPAddresses(devicePairs);

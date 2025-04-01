@@ -21,6 +21,9 @@ class FiveGTopologyHelper : public TopologyHelper
     NodeContainer m_coreNodes;
     NodeContainer m_upfNodes;
 
+    NodeContainer m_congestionSources;
+    NodeContainer m_congestionSinks;
+
     PointToPointHelper p2pGnbToAccess;
     PointToPointHelper p2pPreAggToAgg;
     PointToPointHelper p2pAggRing;
