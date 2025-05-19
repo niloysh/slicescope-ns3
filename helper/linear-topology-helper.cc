@@ -2,7 +2,6 @@
 
 #include <ns3/names.h>
 
-#include <unordered_set>
 
 namespace ns3
 {

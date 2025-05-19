@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <string>
 #include <sys/types.h>
-#include <unordered_set>
 
 namespace ns3
 {

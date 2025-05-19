@@ -1,3 +1,28 @@
+/**
+ * @file example_14.cc
+ * @brief Custom traffic generators send packets with variable sizes to a sink across a 3-host
+ * linear topology
+ *
+ * ### Topology
+ * ```
+ * Host 0 --- Switch 0 --- Switch 1 --- Host 1 --- Switch 2 --- Host 2 (sink)
+ * ```
+ *
+ * - Topology built using `AdvancedTopologyHelper::CreateLinearTopology(3)`
+ * - Links: 1 Gbps host-to-switch, 10 Gbps inter-switch, 2 ms delay
+ *
+ * ### Key Features
+ * - Programmable traffic generation using `CustomTrafficGenerator`
+ * - Normally distributed packet sizes via `NormalRandomVariable`
+ * - owd and packet statistics collected by `CustomPacketSink`
+ * - Real-time progress updates and summary logging
+ *
+ * ### Run
+ *
+ * ./ns3 run "scratch/example_14"
+ *
+ */
+
 #include "ns3/application-helper.h"
 #include "ns3/applications-module.h"
 #include "ns3/bridge-module.h"
@@ -37,7 +62,7 @@ main(int argc, char* argv[])
     LogComponentEnable("CustomPacketSink", LOG_LEVEL_INFO);
     LogComponentEnable("CustomTrafficGenerator", LOG_LEVEL_DEBUG);
 
-    AdvancedTopologyHelper topo;
+    LinearTopologyHelper topo;
     PointToPointHelper p2pHosts;
     p2pHosts.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
     p2pHosts.SetChannelAttribute("Delay", StringValue("2ms"));
@@ -49,7 +74,7 @@ main(int argc, char* argv[])
     topo.SetHostChannelHelper(p2pHosts);
     topo.SetSwitchChannelHelper(p2pSwitches);
 
-    topo.CreateLinearTopology(3);
+    topo.CreateTopology(3);
 
     // Get hosts
     NodeContainer hosts = topo.GetHosts();
@@ -84,7 +109,7 @@ main(int argc, char* argv[])
     generatorApps.Add(CreateGenerator(hosts.Get(1), 3));
 
     // Set start/stop times
-    sinkApp->SetStartTime(Seconds(1.0));
+    sinkApp->SetStopTime(Seconds(1.0));
     sinkApp->SetStopTime(Seconds(10.0));
     generatorApps.Start(Seconds(1.0));
     generatorApps.Stop(Seconds(9.0));
@@ -95,7 +120,7 @@ main(int argc, char* argv[])
     Simulator::Run();
 
     uint32_t totalPacketsSent = 0;
-    uint32_t totalPacketsReceived = sinkApp->GetTotalPacketsReceived();
+    uint32_t totalPacketsReceived = sinkApp->GetTotalRxPackets();
 
     for (uint32_t i = 0; i < generatorApps.GetN(); i++)
     {
@@ -104,17 +129,17 @@ main(int argc, char* argv[])
         totalPacketsSent += generator->GetTotalPacketsSent();
     }
 
-    std::vector<double> rtt = sinkApp->GetRtt();
-    double rttMin = *std::min_element(rtt.begin(), rtt.end());
-    double rttMax = *std::max_element(rtt.begin(), rtt.end());
-    double rttAvg = std::accumulate(rtt.begin(), rtt.end(), 0.0) / rtt.size();
+    std::vector<double> owd = sinkApp->GetOwd();
+    double owdMin = *std::min_element(owd.begin(), owd.end());
+    double owdMax = *std::max_element(owd.begin(), owd.end());
+    double owdAvg = std::accumulate(owd.begin(), owd.end(), 0.0) / owd.size();
 
     NS_LOG_INFO("==== Simulation Summary ====");
     NS_LOG_INFO("Total sent: " << totalPacketsSent << " packets");
     NS_LOG_INFO("Total received: " << totalPacketsReceived << " packets");
-    NS_LOG_INFO("RTT min: " << rttMin * 1000 << "ms");
-    NS_LOG_INFO("RTT max: " << rttMax * 1000 << "ms");
-    NS_LOG_INFO("RTT avg: " << rttAvg * 1000 << "ms");
+    NS_LOG_INFO("owd min: " << owdMin * 1000 << "ms");
+    NS_LOG_INFO("owd max: " << owdMax * 1000 << "ms");
+    NS_LOG_INFO("owd avg: " << owdAvg * 1000 << "ms");
     NS_LOG_INFO("==== End Simulation ====");
 
     Simulator::Destroy();

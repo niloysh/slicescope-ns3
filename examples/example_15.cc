@@ -1,3 +1,28 @@
+/**
+ * @file example_15.cc
+ * @brief Demonstrates how to configure and run a single Slice in a linear topology
+ *
+ * ### Topology
+ * ```
+ * Host 0 --- Switch 0 --- Switch 1 --- Switch 2 --- Host 2
+ * ```
+ *
+ * - Built using `LinearTopologyHelper::CreateTopology(3)`
+ * - Host 0 is source, Host 2 is sink
+ * - 1 Gbps host-to-switch, 10 Gbps inter-switch, 2 ms delay
+ *
+ * ### Key Features
+ * - Demonstrates use of a `Slice` to configure traffic apps automatically
+ * - Slice type set to `eMBB` via attribute
+ * - Automatically installs `CustomTrafficGenerator` and `CustomPacketSink`
+ * - Reports total packets sent/received at the end
+ *
+ * ### Run
+ *
+ * ./ns3 run "scratch/example_15"
+ *
+ */
+
 #include "ns3/application-helper.h"
 #include "ns3/applications-module.h"
 #include "ns3/bridge-module.h"
@@ -38,7 +63,7 @@ main(int argc, char* argv[])
     // LogComponentEnable("CustomTrafficGenerator", LOG_LEVEL_INFO);
     LogComponentEnable("Slice", LOG_LEVEL_INFO);
 
-    AdvancedTopologyHelper topo;
+    LinearTopologyHelper topo;
     PointToPointHelper p2pHosts;
     p2pHosts.SetDeviceAttribute("DataRate", StringValue("1Gbps"));
     p2pHosts.SetChannelAttribute("Delay", StringValue("2ms"));
@@ -50,7 +75,7 @@ main(int argc, char* argv[])
     topo.SetHostChannelHelper(p2pHosts);
     topo.SetSwitchChannelHelper(p2pSwitches);
 
-    topo.CreateLinearTopology(3);
+    topo.CreateTopology(3);
 
     // Get hosts
     NodeContainer hosts = topo.GetHosts();
@@ -59,7 +84,7 @@ main(int argc, char* argv[])
     slice->SetAttribute("SliceType", EnumValue(Slice::eMBB));
     slice->SetAttribute("SourceNode", PointerValue(hosts.Get(0)));
     slice->SetAttribute("SinkNode", PointerValue(hosts.Get(2)));
-    slice->SetAttribute("MaxApps", UintegerValue(1));
+    slice->SetAttribute("NumApps", UintegerValue(1));
     slice->SetAttribute("MaxPackets", UintegerValue(0));
     slice->SetAttribute("StartTime", DoubleValue(5.0));
     slice->SetAttribute("StopTime", DoubleValue(totalSimDuration.GetSeconds()));
@@ -86,7 +111,7 @@ main(int argc, char* argv[])
     for (uint32_t i = 0; i < sinkApps.size(); i++)
     {
         Ptr<CustomPacketSink> sink = sinkApps[i].Get(0)->GetObject<CustomPacketSink>();
-        totalPacketsReceived += sink->GetTotalPacketsReceived();
+        totalPacketsReceived += sink->GetTotalRxPackets();
     }
 
     NS_LOG_INFO("==== Simulation Summary ====");
